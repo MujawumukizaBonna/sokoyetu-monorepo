@@ -144,6 +144,28 @@ Two things worth knowing if you add tests:
 
 ---
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and on every pull request.
+It has two independent jobs, so a backend failure and a frontend failure are
+reported separately:
+
+| Job | What it does |
+| --- | ------------ |
+| **Backend tests** | Starts a `postgres:16-alpine` service, runs `npm ci`, then `npm test` — which rebuilds `sokoyetu_test` from `init.sql` plus the migrations, so a broken migration fails the build |
+| **Frontend build** | Runs `npm ci` and `npm run build` to catch build-time breakage (a bad import, a reference to something that was removed) |
+
+The backend job talks to the service container over `localhost:5432` using the
+same credentials the test suite already defaults to (`sokoyetu` / `sokoyetu`,
+database `sokoyetu_test`), so no secrets are needed in CI. The safety guards in
+`tests/env.js` still apply: the suite refuses to run against anything that is not
+a `test`-named database on a non-hosted host.
+
+`concurrency` is set to cancel an in-flight run when a newer commit arrives on the
+same branch, so a burst of pushes does not queue up stale builds.
+
+---
+
 ## Frontend scripts
 
 | Command | Description |
@@ -291,8 +313,6 @@ bucket, too high and clients can spoof the header to bypass the limit. Never set
 
 ## Known gaps
 
-- **No CI** — the backend suite exists and passes, but nothing runs it automatically, so a
-  regression is only caught when someone remembers to run `npm test`.
 - **The frontend has no tests** — only the default Create React App files remain. The API is
   covered by the backend suite; the React screens are still verified by hand.
 - **Phone number is not editable** — it is the login identifier, so changing it needs a verified

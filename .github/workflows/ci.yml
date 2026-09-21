@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Lets you run the whole thing on demand from the Actions tab.
+  workflow_dispatch:
+
+# A newer push supersedes an in-flight run on the same branch, so a queue of
+# stale runs does not build up behind a burst of commits.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+
+    # The suite creates and rebuilds its own `sokoyetu_test` database, so this
+    # service only needs to exist with a superuser that can CREATE DATABASE.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sokoyetu
+          POSTGRES_PASSWORD: sokoyetu
+          POSTGRES_DB: sokoyetu
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sokoyetu"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: sokoyetu-backend
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: sokoyetu-backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Runs tests/setup-db.js first, which recreates sokoyetu_test from
+      # init.sql plus the migrations, so a broken migration fails the build.
+      - name: Run the test suite
+        run: npm test
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: sokoyetu-frontend
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: sokoyetu-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Catches the class of mistake that only shows up at build time - a bad
+      # import, a stray reference to something that was removed.
+      - name: Build
+        run: npm run build
