@@ -29,8 +29,12 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  // Lets a screen push back a freshly saved profile so the rest of the app
+  // (greetings, nav) reflects the change without a full reload.
+  const updateUser = (userData) => setUser(userData);
+
   return (
-    <AuthContext.Provider value={{ user, loading, loginUser, logoutUser }}>
+    <AuthContext.Provider value={{ user, loading, loginUser, logoutUser, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

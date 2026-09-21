@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getMySupplier, updateMySupplier } from '../api';
+import { getMySupplier, updateMySupplier, updateMe } from '../api';
 import { useAuth } from '../context/AuthContext';
 import RoleShell from '../components/RoleShell';
 import {
@@ -33,11 +33,22 @@ function formatDate(value) {
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-function DetailRow({ label, value }) {
+function ReadOnlyRow({ label, value, hint }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '11px 0', borderBottom: '1px solid var(--border)' }}>
-      <span style={{ fontSize: 13, color: 'var(--text-secondary)', flexShrink: 0 }}>{label}</span>
-      <span style={{ fontSize: 14, fontWeight: 500, textAlign: 'right', wordBreak: 'break-word' }}>{value || '—'}</span>
+    <div style={{ padding: '11px 0', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+        <span style={{ fontSize: 13, color: 'var(--text-secondary)', flexShrink: 0 }}>{label}</span>
+        <span style={{ fontSize: 14, fontWeight: 500, textAlign: 'right', wordBreak: 'break-word' }}>{value || '—'}</span>
+      </div>
+      {hint && <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3 }}>{hint}</p>}
+    </div>
+  );
+}
+
+function SuccessNote({ children }) {
+  return (
+    <div style={{ background: 'var(--green-light)', color: '#27500A', borderRadius: 'var(--radius-md)', padding: 12, marginBottom: 14, fontSize: 13, fontWeight: 500 }}>
+      {children}
     </div>
   );
 }
@@ -45,17 +56,27 @@ function DetailRow({ label, value }) {
 export default function Account() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logoutUser } = useAuth();
+  const { user, logoutUser, updateUser } = useAuth();
   const isManufacturer = user?.role === 'manufacturer';
 
   const nav = isManufacturer ? MANUFACTURER_NAV : RETAILER_NAV;
   const bottomNav = isManufacturer ? MANUFACTURER_BOTTOM_NAV : RETAILER_BOTTOM_NAV;
 
-  const [form, setForm] = useState(null);
-  const [loading, setLoading] = useState(isManufacturer);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+
+  // Personal details — editable by both roles.
+  const [profile, setProfile] = useState({
+    name: user?.name || '',
+    location: user?.location || '',
+  });
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savedProfile, setSavedProfile] = useState(false);
+
+  // Business profile — manufacturers only.
+  const [business, setBusiness] = useState(null);
+  const [loadingBusiness, setLoadingBusiness] = useState(isManufacturer);
+  const [savingBusiness, setSavingBusiness] = useState(false);
+  const [savedBusiness, setSavedBusiness] = useState(false);
 
   useEffect(() => {
     if (!isManufacturer) return;
@@ -63,7 +84,7 @@ export default function Account() {
     getMySupplier()
       .then(res => {
         const supplier = res.data;
-        setForm({
+        setBusiness({
           name: supplier.name || '',
           category: supplier.category || CATEGORIES[0],
           description: supplier.description || '',
@@ -72,34 +93,56 @@ export default function Account() {
         });
       })
       .catch(err => setError(err.response?.data?.error || 'Could not load your business profile.'))
-      .finally(() => setLoading(false));
+      .finally(() => setLoadingBusiness(false));
   }, [isManufacturer]);
 
-  const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
+  const setProfileField = (key, value) => setProfile(current => ({ ...current, [key]: value }));
+  const setBusinessField = (key, value) => setBusiness(current => ({ ...current, [key]: value }));
 
-  const handleSave = async () => {
-    if (!form.name.trim()) {
+  const saveProfile = async () => {
+    if (!profile.name.trim()) {
+      setError('Your name cannot be empty.');
+      return;
+    }
+
+    setSavingProfile(true);
+    setError('');
+
+    try {
+      const res = await updateMe({ name: profile.name.trim(), location: profile.location });
+      updateUser(res.data);
+      setSavedProfile(true);
+      setTimeout(() => setSavedProfile(false), 2500);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save your details.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const saveBusiness = async () => {
+    if (!business.name.trim()) {
       setError('Business name is required.');
       return;
     }
 
-    setSaving(true);
+    setSavingBusiness(true);
     setError('');
 
     try {
       await updateMySupplier({
-        name: form.name.trim(),
-        category: form.category,
-        description: form.description,
-        location: form.location,
-        emoji: form.emoji,
+        name: business.name.trim(),
+        category: business.category,
+        description: business.description,
+        location: business.location,
+        emoji: business.emoji,
       });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
+      setSavedBusiness(true);
+      setTimeout(() => setSavedBusiness(false), 2500);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save changes.');
     } finally {
-      setSaving(false);
+      setSavingBusiness(false);
     }
   };
 
@@ -110,7 +153,7 @@ export default function Account() {
       brand={isManufacturer ? 'Manufacturer Hub' : 'SokoYetu'}
       description={
         isManufacturer
-          ? 'Manage your public business profile and listings.'
+          ? 'Manage your details, public business profile, and listings.'
           : 'Your account details and settings.'
       }
       onLogout={logoutUser}
@@ -155,16 +198,52 @@ export default function Account() {
               </div>
             </div>
 
-            <div className="surface-card" style={{ borderRadius: 'var(--radius-lg)', padding: '4px 16px 12px', marginBottom: 16 }}>
-              <DetailRow label="Full name" value={user?.name} />
-              <DetailRow label="Phone number" value={user?.phone} />
-              <DetailRow label="Role" value={ROLE_LABEL[user?.role] || user?.role} />
-              <DetailRow label="Location" value={user?.location} />
-              <DetailRow label="Member since" value={memberSince} />
+            {error && <div className="error-box" style={{ marginBottom: 14 }}>{error}</div>}
+
+            <p className="section-label" style={{ paddingLeft: 0, paddingRight: 0 }}>
+              Your details
+            </p>
+
+            {savedProfile && <SuccessNote>Your details have been updated.</SuccessNote>}
+
+            <div className="stack" style={{ marginBottom: 8 }}>
+              <div className="field">
+                <label>Full name</label>
+                <input
+                  value={profile.name}
+                  onChange={e => setProfileField('name', e.target.value)}
+                  placeholder="Your name"
+                />
+              </div>
+
+              <div className="field">
+                <label>Location</label>
+                <input
+                  value={profile.location}
+                  onChange={e => setProfileField('location', e.target.value)}
+                  placeholder="e.g. Kigali"
+                />
+              </div>
+
+              <button className="btn-primary" onClick={saveProfile} disabled={savingProfile}>
+                {savingProfile ? 'Saving...' : 'Save details'}
+              </button>
+            </div>
+
+            <div className="surface-card" style={{ borderRadius: 'var(--radius-lg)', padding: '4px 16px 12px', marginTop: 8 }}>
+              <ReadOnlyRow
+                label="Phone number"
+                value={user?.phone}
+                hint="Used to sign in and cannot be changed here."
+              />
+              <ReadOnlyRow label="Role" value={ROLE_LABEL[user?.role] || user?.role} />
+              <ReadOnlyRow label="Member since" value={memberSince} />
             </div>
 
             {isManufacturer && (
               <>
+                <div className="divider" style={{ margin: '24px 0 18px' }} />
+
                 <p className="section-label" style={{ paddingLeft: 0, paddingRight: 0 }}>
                   Business profile
                 </p>
@@ -172,32 +251,35 @@ export default function Account() {
                   Retailers see this information when they browse suppliers.
                 </p>
 
-                {error && <div className="error-box" style={{ marginBottom: 14 }}>{error}</div>}
-                {saved && (
-                  <div style={{ background: 'var(--green-light)', color: '#27500A', borderRadius: 'var(--radius-md)', padding: 12, marginBottom: 14, fontSize: 13, fontWeight: 500 }}>
-                    Business profile updated.
-                  </div>
-                )}
+                {savedBusiness && <SuccessNote>Business profile updated.</SuccessNote>}
 
-                {loading ? (
+                {loadingBusiness ? (
                   <div className="spinner" />
-                ) : form ? (
+                ) : business ? (
                   <div className="stack">
                     <div className="field">
                       <label>Business name</label>
-                      <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Kigali Dairy Works" />
+                      <input
+                        value={business.name}
+                        onChange={e => setBusinessField('name', e.target.value)}
+                        placeholder="e.g. Kigali Dairy Works"
+                      />
                     </div>
 
                     <div className="field">
                       <label>Category</label>
-                      <select value={form.category} onChange={e => set('category', e.target.value)}>
+                      <select value={business.category} onChange={e => setBusinessField('category', e.target.value)}>
                         {CATEGORIES.map(category => <option key={category}>{category}</option>)}
                       </select>
                     </div>
 
                     <div className="field">
-                      <label>Location</label>
-                      <input value={form.location} onChange={e => set('location', e.target.value)} placeholder="e.g. Kigali" />
+                      <label>Business location</label>
+                      <input
+                        value={business.location}
+                        onChange={e => setBusinessField('location', e.target.value)}
+                        placeholder="e.g. Kigali"
+                      />
                     </div>
 
                     <div className="field">
@@ -207,14 +289,14 @@ export default function Account() {
                           <button
                             key={emoji}
                             type="button"
-                            onClick={() => set('emoji', emoji)}
+                            onClick={() => setBusinessField('emoji', emoji)}
                             style={{
                               width: 40,
                               height: 40,
                               fontSize: 22,
-                              border: `2px solid ${form.emoji === emoji ? 'var(--text)' : 'var(--border)'}`,
+                              border: `2px solid ${business.emoji === emoji ? 'var(--text)' : 'var(--border)'}`,
                               borderRadius: 8,
-                              background: form.emoji === emoji ? 'var(--bg-secondary)' : 'transparent',
+                              background: business.emoji === emoji ? 'var(--bg-secondary)' : 'transparent',
                               cursor: 'pointer',
                             }}
                           >
@@ -227,14 +309,14 @@ export default function Account() {
                     <div className="field">
                       <label>About your business (optional)</label>
                       <textarea
-                        value={form.description}
-                        onChange={e => set('description', e.target.value)}
+                        value={business.description}
+                        onChange={e => setBusinessField('description', e.target.value)}
                         placeholder="What you make, your capacity, delivery areas..."
                       />
                     </div>
 
-                    <button className="btn-primary" onClick={handleSave} disabled={saving}>
-                      {saving ? 'Saving...' : 'Save changes'}
+                    <button className="btn-primary" onClick={saveBusiness} disabled={savingBusiness}>
+                      {savingBusiness ? 'Saving...' : 'Save business profile'}
                     </button>
                   </div>
                 ) : (
@@ -247,7 +329,7 @@ export default function Account() {
               </>
             )}
 
-            <div className="divider" style={{ margin: '22px 0 16px' }} />
+            <div className="divider" style={{ margin: '24px 0 16px' }} />
 
             <button className="btn-ghost" onClick={logoutUser} style={{ width: '100%' }}>
               Log out of SokoYetu

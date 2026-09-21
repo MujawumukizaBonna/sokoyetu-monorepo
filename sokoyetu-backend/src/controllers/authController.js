@@ -121,4 +121,42 @@ const getMe = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getMe };
+// PUT /api/auth/me
+// Lets any signed-in user update their own display name and location.
+//
+// Deliberately NOT accepted:
+//   phone    - it is the login identifier, so changing it needs a verified flow
+//   role     - accepting it here would let anyone escalate to manufacturer
+//   password - must go through a dedicated, validated change-password route
+const updateMe = async (req, res) => {
+  const { name, location } = req.body;
+
+  if (name !== undefined && !String(name).trim()) {
+    return res.status(400).json({ error: 'Name cannot be empty' });
+  }
+
+  try {
+    const result = await db.query(
+      `UPDATE users SET
+        name = COALESCE($1, name),
+        location = COALESCE($2, location)
+       WHERE id = $3
+       RETURNING id, name, phone, role, location, created_at`,
+      [name === undefined ? null : String(name).trim(), location, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    if (handleDatabaseError(res, err)) {
+      return;
+    }
+    console.error('Update me error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+module.exports = { register, login, getMe, updateMe };
