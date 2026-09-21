@@ -50,4 +50,21 @@ const apiLimiter = rateLimit({
   handler: respondTooMany('Too many requests. Please slow down and try again shortly.'),
 });
 
-module.exports = { loginLimiter, registerLimiter, apiLimiter };
+// Guards PUT /auth/password. Holding a valid token is not enough to change the
+// password (the current one must be supplied), but this stops someone who does
+// hold a token from grinding through guesses at the current password.
+//
+// Keyed on the authenticated user rather than the connection, so the limit
+// follows the account and cannot be reset by switching networks. Mounted after
+// authMiddleware, which is why req.user is available here.
+const passwordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => `user:${req.user?.id ?? ipKeyGenerator(req.ip)}`,
+  handler: respondTooMany('Too many password change attempts. Please wait 15 minutes and try again.'),
+});
+
+module.exports = { loginLimiter, registerLimiter, apiLimiter, passwordLimiter };

@@ -111,7 +111,7 @@ All routes are prefixed with `/api`.
 
 | Area | Endpoints |
 | ---- | --------- |
-| Auth | `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `PUT /auth/me` |
+| Auth | `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `PUT /auth/me`, `PUT /auth/password` |
 | Suppliers | `GET /suppliers`, `GET /suppliers/:id`, `GET /suppliers/my`, `PUT /suppliers/my` |
 | Products | `GET /products`, `GET /products/mine`, `GET /products/:id`, `POST /products`, `PUT /products/:id`, `DELETE /products/:id` |
 | Orders | `POST /orders`, `GET /orders/my`, `GET /orders/incoming`, `PUT /orders/:id/status`, `GET /orders/stats` |
@@ -123,6 +123,12 @@ Authentication uses a bearer token: `Authorization: Bearer <jwt>`.
 `phone` (the login identifier, so changing it needs a verified flow), `role` (accepting it would
 let any account escalate itself to manufacturer), and `password` (must go through a dedicated
 route with the current password and strength rules).
+
+`PUT /auth/password` changes the signed-in user's own password. It requires both `currentPassword`
+and `newPassword`, and rejects a new password under 6 characters or one identical to the current
+one. The account is taken from the token and never from the body, so passing a `userId` cannot be
+used to change someone else's password. Changing a password does **not** invalidate tokens that are
+already signed in — see the note in "Known gaps".
 
 `GET /products` is public and returns only live listings. `GET /products/mine` requires a
 manufacturer token and returns **all** of that manufacturer's products, including ones hidden
@@ -155,6 +161,11 @@ See `sokoyetu-backend/LOCAL_DEVELOPMENT.md` for the full local and deployment wa
   (`PAWAPAY_SIGNED_REQUESTS_ENABLED=false`). Enable them only after configuring `PAWAPAY_PUBLIC_KEY_ID`.
 - `PUT /auth/me` only accepts `name` and `location`. It ignores `role`, `password` and `phone`,
   so it cannot be used to escalate privileges or bypass the password rules.
+- `PUT /auth/password` requires the current password even though the caller already holds a valid
+  token. Without that check, a stolen token would be enough to set a new password and lock the real
+  owner out of their account.
+- Password rules are enforced server side as well as in the form, so posting straight to the API
+  cannot get around the 6 character minimum.
 
 ### Rate limiting
 
@@ -165,12 +176,17 @@ Throttling is applied with `express-rate-limit`. Exceeding a limit returns
 | ----- | ----- | -------- |
 | `POST /auth/login` | 10 failures / 15 min | client IP **+** submitted phone |
 | `POST /auth/register` | 5 / hour | client IP |
+| `PUT /auth/password` | 5 failures / 15 min | signed-in user id |
 | Everything under `/api` | 300 / 15 min | client IP |
 
 Login is keyed on IP *and* phone so that neither one IP spraying many accounts nor many IPs
 targeting one account gets through. Successful logins do not count towards the limit, so a
 legitimate user signing in on several devices is never locked out. `GET /health` sits outside
 `/api` so monitoring is never throttled.
+
+Password changes are keyed on the user rather than the connection, so the limit follows the account
+and cannot be reset by switching networks. Only failures count, so a successful change never eats
+into the quota.
 
 **`TRUST_PROXY_HOPS` matters.** The service runs behind a proxy, so the client IP comes from
 `X-Forwarded-For`. Set this to the number of proxy hops (1 for Railway/Vercel, 0 for no proxy).
@@ -187,7 +203,12 @@ bucket, too high and clients can spoof the header to bypass the limit. Never set
 - **Phone number is not editable** — it is the login identifier, so changing it needs a verified
   flow (confirm the old number, check the new one is free). Name and location are editable from
   the Account screen.
-- **No password change or reset** — there is no change-password route and no recovery flow.
+- **No forgotten-password reset** — a signed-in user can change their password from the Account
+  screen, but there is no "forgot password" flow. Phone is the login identifier, so recovery needs
+  a verified channel: an SMS code to that number, or an admin-triggered reset.
+- **Existing sessions survive a password change** — tokens are stateless JWTs with a 7 day expiry,
+  so other devices stay signed in after a password change. Revoking them requires a token version
+  column checked in `authMiddleware`.
 - **Rate limits are per-instance and in-memory** — they reset on restart and are not shared
   across replicas. Fine for a single Railway instance; a multi-instance deployment would need a
   shared store (e.g. Redis).

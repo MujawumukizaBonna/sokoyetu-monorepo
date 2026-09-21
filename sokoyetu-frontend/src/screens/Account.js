@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getMySupplier, updateMySupplier, updateMe } from '../api';
+import { getMySupplier, updateMySupplier, updateMe, changePassword } from '../api';
 import { useAuth } from '../context/AuthContext';
 import RoleShell from '../components/RoleShell';
 import {
@@ -13,6 +13,10 @@ import {
 
 const CATEGORIES = ['Food & beverage', 'Cleaning', 'Textiles', 'Hardware', 'Other'];
 const SUPPLIER_EMOJIS = ['🏭', '🥛', '🧼', '🌾', '🌽', '🍚', '🧴', '🧂', '🧪', '🧵'];
+
+// Kept in step with MIN_PASSWORD_LENGTH in the backend auth controller. This
+// check is only here to give faster feedback; the backend is authoritative.
+const MIN_PASSWORD_LENGTH = 6;
 
 const ROLE_LABEL = { retailer: 'Retailer', manufacturer: 'Manufacturer' };
 
@@ -77,6 +81,11 @@ export default function Account() {
   const [loadingBusiness, setLoadingBusiness] = useState(isManufacturer);
   const [savingBusiness, setSavingBusiness] = useState(false);
   const [savedBusiness, setSavedBusiness] = useState(false);
+
+  // Password change — available to both roles.
+  const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [savedPassword, setSavedPassword] = useState(false);
 
   useEffect(() => {
     if (!isManufacturer) return;
@@ -147,6 +156,43 @@ export default function Account() {
   };
 
   const memberSince = formatDate(user?.created_at);
+
+  const setPasswordField = (key, value) => setPasswords(current => ({ ...current, [key]: value }));
+
+  const savePassword = async () => {
+    const { current, next, confirm } = passwords;
+
+    if (!current || !next || !confirm) {
+      setError('Fill in your current password, the new password, and the confirmation.');
+      return;
+    }
+    if (next.length < MIN_PASSWORD_LENGTH) {
+      setError(`New password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      return;
+    }
+    if (next !== confirm) {
+      setError('The two new passwords do not match.');
+      return;
+    }
+    if (next === current) {
+      setError('New password must be different from your current password.');
+      return;
+    }
+
+    setSavingPassword(true);
+    setError('');
+
+    try {
+      await changePassword({ currentPassword: current, newPassword: next });
+      setPasswords({ current: '', next: '', confirm: '' });
+      setSavedPassword(true);
+      setTimeout(() => setSavedPassword(false), 2500);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not change your password.');
+    } finally {
+      setSavingPassword(false);
+    }
+  };
 
   return (
     <RoleShell
@@ -328,6 +374,56 @@ export default function Account() {
                 )}
               </>
             )}
+
+            <div className="divider" style={{ margin: '24px 0 18px' }} />
+
+            <p className="section-label" style={{ paddingLeft: 0, paddingRight: 0 }}>
+              Password
+            </p>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
+              Choose something at least {MIN_PASSWORD_LENGTH} characters long that you do not use elsewhere.
+            </p>
+
+            {savedPassword && <SuccessNote>Password changed.</SuccessNote>}
+
+            <div className="stack" style={{ marginBottom: 8 }}>
+              <div className="field">
+                <label>Current password</label>
+                <input
+                  type="password"
+                  value={passwords.current}
+                  onChange={e => setPasswordField('current', e.target.value)}
+                  placeholder="Your current password"
+                  autoComplete="current-password"
+                />
+              </div>
+
+              <div className="field">
+                <label>New password</label>
+                <input
+                  type="password"
+                  value={passwords.next}
+                  onChange={e => setPasswordField('next', e.target.value)}
+                  placeholder={`Minimum ${MIN_PASSWORD_LENGTH} characters`}
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <div className="field">
+                <label>Confirm new password</label>
+                <input
+                  type="password"
+                  value={passwords.confirm}
+                  onChange={e => setPasswordField('confirm', e.target.value)}
+                  placeholder="Repeat the new password"
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <button className="btn-primary" onClick={savePassword} disabled={savingPassword}>
+                {savingPassword ? 'Changing...' : 'Change password'}
+              </button>
+            </div>
 
             <div className="divider" style={{ margin: '24px 0 16px' }} />
 

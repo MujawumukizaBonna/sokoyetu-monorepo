@@ -16,6 +16,7 @@ export const register = (data) => API.post('/api/auth/register', data);
 export const login = (data) => API.post('/api/auth/login', data);
 export const getMe = () => API.get('/api/auth/me');
 export const updateMe = (data) => API.put('/api/auth/me', data);
+export const changePassword = (data) => API.put('/api/auth/password', data);
 
 // ── SUPPLIERS ─────────────────────────────────────
 export const getSuppliers = (params) => API.get('/api/suppliers', { params });
