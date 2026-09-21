@@ -151,7 +151,8 @@ npm test
 ```
 
 The frontend suite runs on Jest through `react-scripts test`, using the
-`@testing-library/*` packages already listed in `package.json`. Coverage:
+`@testing-library/*` packages already listed in `package.json`. 81 tests across
+7 files:
 
 | File | Covers |
 | ---- | ------ |
@@ -159,6 +160,9 @@ The frontend suite runs on Jest through `react-scripts test`, using the
 | `components/navItems.test.js` | `matchesPath` (exact, sub-path, array, predicate) and the nav invariants — including the guard that the dashboard item does not light up on `/manufacturer/products` |
 | `api/index.test.js` | The stored token being attached to requests, and the session-ended signal firing on `SESSION_INVALID` but **not** on a plain 401 |
 | `context/AuthContext.test.js` | Restoring a session from a stored token, discarding a rejected one, and dropping the user when the session-ended event fires |
+| `screens/Login.test.js` | Empty-field validation, the role-mismatch guard (a manufacturer's number entered on the retailer form is refused without signing anyone in), Enter-to-submit, and the 429 throttle message |
+| `screens/Register.test.js` | Field and password-length validation, both roles' payloads, role-specific labels, and the "phone already registered" message |
+| `screens/Account.test.js` | Profile editing, every password-change validation branch, storing the replacement token, the two-step sign-out-everywhere confirm, and the manufacturer-only business profile |
 
 `react-scripts test` watches files by default and never exits, so CI passes
 `CI=true` to make it run once and return.
@@ -349,9 +353,9 @@ bucket, too high and clients can spoof the header to bypass the limit. Never set
 
 ## Known gaps
 
-- **The React screens are only partly covered** — the frontend suite covers routing, the nav
-  logic, the API client and the auth state, but the individual screens (sign-in, register,
-  Account, the product and order flows) are still verified by hand.
+- **Some React screens are still hand-verified** — `Login`, `Register` and `Account` have tests, but
+  the browsing and ordering screens (`RetailerHome`, `SupplierDetail`, `OrderSummary`,
+  `OrderHistory`, `ManufacturerHome`, `AddProduct`, `MyProducts`) do not.
 - **Phone number is not editable** — it is the login identifier, so changing it needs a verified
   flow (confirm the old number, check the new one is free). Name and location are editable from
   the Account screen.
