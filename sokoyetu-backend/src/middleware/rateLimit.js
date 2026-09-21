@@ -67,4 +67,17 @@ const passwordLimiter = rateLimit({
   handler: respondTooMany('Too many password change attempts. Please wait 15 minutes and try again.'),
 });
 
-module.exports = { loginLimiter, registerLimiter, apiLimiter, passwordLimiter };
+// Guards POST /auth/logout-all. Someone holding a token could otherwise spam this
+// to keep the real user permanently signed out - a denial of service rather than a
+// compromise, but still worth capping. Generous, because a legitimate user has no
+// reason to call it often.
+const logoutAllLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `user:${req.user?.id ?? ipKeyGenerator(req.ip)}`,
+  handler: respondTooMany('Too many sign-out requests. Please try again later.'),
+});
+
+module.exports = { loginLimiter, registerLimiter, apiLimiter, passwordLimiter, logoutAllLimiter };

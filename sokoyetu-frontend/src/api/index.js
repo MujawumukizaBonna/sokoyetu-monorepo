@@ -38,6 +38,7 @@ export const login = (data) => API.post('/api/auth/login', data);
 export const getMe = () => API.get('/api/auth/me');
 export const updateMe = (data) => API.put('/api/auth/me', data);
 export const changePassword = (data) => API.put('/api/auth/password', data);
+export const logoutAll = () => API.post('/api/auth/logout-all');
 
 // ── SUPPLIERS ─────────────────────────────────────
 export const getSuppliers = (params) => API.get('/api/suppliers', { params });

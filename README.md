@@ -111,7 +111,7 @@ All routes are prefixed with `/api`.
 
 | Area | Endpoints |
 | ---- | --------- |
-| Auth | `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `PUT /auth/me`, `PUT /auth/password` |
+| Auth | `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `PUT /auth/me`, `PUT /auth/password`, `POST /auth/logout-all` |
 | Suppliers | `GET /suppliers`, `GET /suppliers/:id`, `GET /suppliers/my`, `PUT /suppliers/my` |
 | Products | `GET /products`, `GET /products/mine`, `GET /products/:id`, `POST /products`, `PUT /products/:id`, `DELETE /products/:id` |
 | Orders | `POST /orders`, `GET /orders/my`, `GET /orders/incoming`, `PUT /orders/:id/status`, `GET /orders/stats` |
@@ -132,6 +132,12 @@ used to change someone else's password.
 Changing a password **revokes every token issued before it**, which signs the user out everywhere.
 The response carries a replacement `token` so the device that made the change stays signed in. See
 "Session revocation" under Security notes.
+
+`POST /auth/logout-all` signs the user out of every device on purpose. It uses the same mechanism but
+returns **no** replacement token, because the calling device is meant to end up signed out too — the
+client is expected to drop its stored token. It does not require the current password: the worst a
+caller can do with it is force a sign-in, which is far less severe than the account takeover that
+`PUT /auth/password` guards against.
 
 `GET /products` is public and returns only live listings. `GET /products/mine` requires a
 manufacturer token and returns **all** of that manufacturer's products, including ones hidden
@@ -186,6 +192,9 @@ Changing a password increments the column, which signs the user out of every oth
 change request itself is holding a token that was just invalidated, so the endpoint returns a fresh
 one for the device that made the change.
 
+`POST /auth/logout-all` bumps the same column to revoke everything on demand, including the caller.
+It returns no replacement token — the client is expected to drop its own.
+
 A 401 that means "this session is over" carries `"code": "SESSION_INVALID"`. The frontend keys off
 that code to clear the stored token and return to sign-in. A 401 **without** the code is an ordinary
 failed attempt — a wrong current password, a wrong sign-in — and deliberately does not sign anyone
@@ -205,6 +214,7 @@ Throttling is applied with `express-rate-limit`. Exceeding a limit returns
 | `POST /auth/login` | 10 failures / 15 min | client IP **+** submitted phone |
 | `POST /auth/register` | 5 / hour | client IP |
 | `PUT /auth/password` | 5 failures / 15 min | signed-in user id |
+| `POST /auth/logout-all` | 5 / hour | signed-in user id |
 | Everything under `/api` | 300 / 15 min | client IP |
 
 Login is keyed on IP *and* phone so that neither one IP spraying many accounts nor many IPs
@@ -215,6 +225,9 @@ legitimate user signing in on several devices is never locked out. `GET /health`
 Password changes are keyed on the user rather than the connection, so the limit follows the account
 and cannot be reset by switching networks. Only failures count, so a successful change never eats
 into the quota.
+
+Sign-out is capped too, because a caller holding a token could otherwise spam it to keep the real
+user permanently signed out — a denial of service rather than a compromise, but still worth capping.
 
 **`TRUST_PROXY_HOPS` matters.** The service runs behind a proxy, so the client IP comes from
 `X-Forwarded-For`. Set this to the number of proxy hops (1 for Railway/Vercel, 0 for no proxy).
@@ -234,9 +247,6 @@ bucket, too high and clients can spoof the header to bypass the limit. Never set
 - **No forgotten-password reset** — a signed-in user can change their password from the Account
   screen, but there is no "forgot password" flow. Phone is the login identifier, so recovery needs
   a verified channel: an SMS code to that number, or an admin-triggered reset.
-- **No "sign out everywhere" button** — changing a password revokes other sessions, but there is no
-  standalone action for a user who wants to drop other devices without changing their password. The
-  mechanism already exists (`token_version`); it just needs an endpoint and a button.
 - **Rate limits are per-instance and in-memory** — they reset on restart and are not shared
   across replicas. Fine for a single Railway instance; a multi-instance deployment would need a
   shared store (e.g. Redis).

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getMySupplier, updateMySupplier, updateMe, changePassword } from '../api';
+import { getMySupplier, updateMySupplier, updateMe, changePassword, logoutAll } from '../api';
 import { useAuth } from '../context/AuthContext';
 import RoleShell from '../components/RoleShell';
 import {
@@ -86,6 +86,10 @@ export default function Account() {
   const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
   const [savingPassword, setSavingPassword] = useState(false);
   const [savedPassword, setSavedPassword] = useState(false);
+
+  // Sign out everywhere — asks for confirmation first, since it ends this session too.
+  const [confirmingLogoutAll, setConfirmingLogoutAll] = useState(false);
+  const [signingOutAll, setSigningOutAll] = useState(false);
 
   useEffect(() => {
     if (!isManufacturer) return;
@@ -197,6 +201,23 @@ export default function Account() {
       setError(err.response?.data?.error || 'Could not change your password.');
     } finally {
       setSavingPassword(false);
+    }
+  };
+
+  const signOutEverywhere = async () => {
+    setSigningOutAll(true);
+    setError('');
+
+    try {
+      await logoutAll();
+      // That request revoked this session along with the others, so drop the local
+      // token and let the router return to sign-in.
+      logoutUser();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not sign out of your other devices.');
+    } finally {
+      setSigningOutAll(false);
+      setConfirmingLogoutAll(false);
     }
   };
 
@@ -430,6 +451,36 @@ export default function Account() {
                 {savingPassword ? 'Changing...' : 'Change password'}
               </button>
             </div>
+
+            <div className="divider" style={{ margin: '24px 0 18px' }} />
+
+            <p className="section-label" style={{ paddingLeft: 0, paddingRight: 0 }}>
+              Devices
+            </p>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
+              Signing out everywhere ends every session on every device, including this one. Use it if
+              you think someone else has access to your account.
+            </p>
+
+            {confirmingLogoutAll ? (
+              <div className="surface-card" style={{ borderRadius: 'var(--radius-md)', padding: 14 }}>
+                <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
+                  Sign out of every device?
+                </p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn-primary" onClick={signOutEverywhere} disabled={signingOutAll} style={{ flex: 1 }}>
+                    {signingOutAll ? 'Signing out...' : 'Yes, sign out everywhere'}
+                  </button>
+                  <button className="btn-ghost" onClick={() => setConfirmingLogoutAll(false)} style={{ flex: 1 }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button className="btn-ghost" onClick={() => setConfirmingLogoutAll(true)} style={{ width: '100%' }}>
+                Sign out of all devices
+              </button>
+            )}
 
             <div className="divider" style={{ margin: '24px 0 16px' }} />
 

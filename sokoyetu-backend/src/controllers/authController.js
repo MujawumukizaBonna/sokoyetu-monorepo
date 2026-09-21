@@ -242,4 +242,39 @@ const changePassword = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getMe, updateMe, changePassword };
+// POST /api/auth/logout-all
+// Signs the user out of every device, including the one making the request.
+//
+// Same mechanism as a password change - it bumps token_version - but it
+// deliberately returns NO replacement token, because the whole point is that this
+// device ends up signed out too. The caller is expected to drop its stored token.
+//
+// The current password is not required here, unlike PUT /auth/password. The worst
+// a caller can do with a token is force a sign-in, which is far less severe than
+// the account takeover that the password route guards against. A "sign me out
+// everywhere" action should not be the thing standing between a worried user and
+// getting other people off their account.
+const logoutAll = async (req, res) => {
+  try {
+    const result = await db.query(
+      `UPDATE users SET token_version = token_version + 1
+        WHERE id = $1
+       RETURNING id`,
+      [req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'Signed out of all devices' });
+  } catch (err) {
+    if (handleDatabaseError(res, err)) {
+      return;
+    }
+    console.error('Logout all error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+module.exports = { register, login, getMe, updateMe, changePassword, logoutAll };
