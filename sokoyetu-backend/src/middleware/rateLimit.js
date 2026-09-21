@@ -6,6 +6,15 @@ const respondTooMany = (message) => (req, res) => {
   res.status(429).json({ error: message });
 };
 
+// Limits are overridable so a deployment can tune them without a code change, and
+// so the test suite can raise them out of its own way (the register and API
+// limiters key on the client IP, and every test request comes from 127.0.0.1).
+// Anything unset, unparseable or non-positive falls back to the value below.
+const limitFromEnv = (name, fallback) => {
+  const raw = Number(process.env[name]);
+  return Number.isFinite(raw) && raw > 0 ? raw : fallback;
+};
+
 // Brute-force protection for POST /auth/login.
 //
 // Keyed on client IP *and* the submitted phone number, so that neither of these
@@ -19,7 +28,7 @@ const respondTooMany = (message) => (req, res) => {
 // legitimate user signing in on several devices is never locked out.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: limitFromEnv('LOGIN_RATE_LIMIT', 10),
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
@@ -32,7 +41,7 @@ const loginLimiter = rateLimit({
 // number is attacker-chosen and would make the limit trivial to sidestep.
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  limit: 5,
+  limit: limitFromEnv('REGISTER_RATE_LIMIT', 5),
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => ipKeyGenerator(req.ip),
@@ -43,7 +52,7 @@ const registerLimiter = rateLimit({
 // to stop runaway clients, not to shape normal traffic.
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 300,
+  limit: limitFromEnv('API_RATE_LIMIT', 300),
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => ipKeyGenerator(req.ip),
@@ -59,7 +68,7 @@ const apiLimiter = rateLimit({
 // authMiddleware, which is why req.user is available here.
 const passwordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 5,
+  limit: limitFromEnv('PASSWORD_RATE_LIMIT', 5),
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
@@ -73,7 +82,7 @@ const passwordLimiter = rateLimit({
 // reason to call it often.
 const logoutAllLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  limit: 5,
+  limit: limitFromEnv('LOGOUT_ALL_RATE_LIMIT', 5),
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => `user:${req.user?.id ?? ipKeyGenerator(req.ip)}`,

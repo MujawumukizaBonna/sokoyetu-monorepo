@@ -94,6 +94,55 @@ npm start          # http://localhost:3000
 | `npm run dev` | Run with nodemon for auto-reload |
 | `npm run db:up` | Start the PostgreSQL container |
 | `npm run db:down` | Stop the containers |
+| `npm test` | Rebuild the test database, then run the whole suite |
+| `npm run test:setup` | Only rebuild the test database |
+| `npm run test:watch` | Re-run on change |
+
+---
+
+## Tests
+
+The backend suite uses Node's built-in test runner, so there is **nothing extra to
+install** and no test framework in `package.json`.
+
+```
+npm test
+```
+
+That rebuilds `sokoyetu_test`, then runs every `tests/*.test.js`. Coverage:
+
+| File | Covers |
+| ---- | ------ |
+| `auth.test.js` | Registration, sign-in, profile edits, password change, session revocation, sign out everywhere |
+| `products.test.js` | Public catalogue, the manufacturer's own listings, create/edit, soft delete and restore |
+| `orders.test.js` | Placing an order, stock reservation, both order views, status changes, role guards |
+| `rate-limit.test.js` | Sign-in, password-change and sign-out throttling |
+| `rate-limit-register.test.js` | Account-creation throttling, kept separate so its exhausted bucket cannot block other files |
+
+### How it stays off your real data
+
+Tests truncate tables, so two independent guards stand between the suite and a real
+database:
+
+1. `tests/env.js` refuses to start unless the database name contains `test` and the
+   host is not a hosted provider.
+2. `tests/helpers.js` re-checks `current_database()` against the live connection
+   before every truncate, so a mistake in the environment cannot slip through.
+
+Tests run against `sokoyetu_test` on the same local Postgres as development, so
+`npm run db:up` must have been run at least once. Your development database and any
+hosted database are never touched.
+
+Two things worth knowing if you add tests:
+
+- **Test files run one at a time** (`--test-concurrency=1`). They share a single
+  database, so running them in parallel would have them truncate each other's rows
+  mid-test. Node's default is parallel, which is why the flag is there.
+- **Rate limits are per-process and in memory.** `tests/env.js` raises the
+  IP-keyed limits because every request comes from `127.0.0.1`, and phone numbers
+  are unique per test because truncating rows does not clear a limiter's counter.
+
+---
 
 ## Frontend scripts
 
@@ -229,6 +278,10 @@ into the quota.
 Sign-out is capped too, because a caller holding a token could otherwise spam it to keep the real
 user permanently signed out — a denial of service rather than a compromise, but still worth capping.
 
+Every limit can be tuned without a code change, which is also how the test suite gets out of its own
+way: `LOGIN_RATE_LIMIT`, `REGISTER_RATE_LIMIT`, `PASSWORD_RATE_LIMIT`, `LOGOUT_ALL_RATE_LIMIT` and
+`API_RATE_LIMIT`. Anything unset, unparseable or non-positive falls back to the default above.
+
 **`TRUST_PROXY_HOPS` matters.** The service runs behind a proxy, so the client IP comes from
 `X-Forwarded-For`. Set this to the number of proxy hops (1 for Railway/Vercel, 0 for no proxy).
 Getting it wrong breaks rate limiting in one of two ways: too low and every user shares a single
@@ -238,9 +291,10 @@ bucket, too high and clients can spoof the header to bypass the limit. Never set
 
 ## Known gaps
 
-- **No automated tests** — the default Create React App test files remain. The auth and product
-  flows were verified manually against a local database, but nothing runs in CI.
-- **No CI** — builds and linting are not automated.
+- **No CI** — the backend suite exists and passes, but nothing runs it automatically, so a
+  regression is only caught when someone remembers to run `npm test`.
+- **The frontend has no tests** — only the default Create React App files remain. The API is
+  covered by the backend suite; the React screens are still verified by hand.
 - **Phone number is not editable** — it is the login identifier, so changing it needs a verified
   flow (confirm the old number, check the new one is free). Name and location are editable from
   the Account screen.

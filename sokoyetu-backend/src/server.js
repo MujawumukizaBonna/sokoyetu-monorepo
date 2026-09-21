@@ -81,7 +81,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
+// Exported so tests can bind the app to an ephemeral port. Listening only when
+// this file is the entry point keeps `npm start` behaving exactly as before.
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`SokoYetu backend running on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`SokoYetu backend running on port ${PORT}`);
+  });
+}
+
+module.exports = app;

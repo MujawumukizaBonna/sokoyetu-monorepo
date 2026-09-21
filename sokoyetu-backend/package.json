@@ -7,7 +7,10 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "db:up": "docker compose up -d postgres",
-    "db:down": "docker compose down"
+    "db:down": "docker compose down",
+    "test": "node tests/setup-db.js && node --test --test-concurrency=1 \"tests/**/*.test.js\"",
+    "test:setup": "node tests/setup-db.js",
+    "test:watch": "node --test --test-concurrency=1 --watch \"tests/**/*.test.js\""
   },
   "keywords": [],
   "author": "MujawumukizaBonna",
