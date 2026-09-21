@@ -59,7 +59,7 @@ jobs:
         run: npm test
 
   frontend:
-    name: Frontend build
+    name: Frontend tests and build
     runs-on: ubuntu-latest
 
     defaults:
@@ -79,6 +79,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # CI is set explicitly because `react-scripts test` starts a file watcher
+      # and never exits without it. GitHub already exports CI=true, but relying
+      # on that would make this step hang if the workflow were run elsewhere.
+      - name: Run tests
+        run: npm test
+        env:
+          CI: 'true'
 
       # Catches the class of mistake that only shows up at build time - a bad
       # import, a stray reference to something that was removed.

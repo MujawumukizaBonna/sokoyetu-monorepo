@@ -100,7 +100,7 @@ npm start          # http://localhost:3000
 
 ---
 
-## Tests
+## Backend tests
 
 The backend suite uses Node's built-in test runner, so there is **nothing extra to
 install** and no test framework in `package.json`.
@@ -144,6 +144,42 @@ Two things worth knowing if you add tests:
 
 ---
 
+## Frontend tests
+
+```
+npm test
+```
+
+The frontend suite runs on Jest through `react-scripts test`, using the
+`@testing-library/*` packages already listed in `package.json`. Coverage:
+
+| File | Covers |
+| ---- | ------ |
+| `App.test.js` | The landing page renders, and a signed-out visitor is bounced off protected routes |
+| `components/navItems.test.js` | `matchesPath` (exact, sub-path, array, predicate) and the nav invariants — including the guard that the dashboard item does not light up on `/manufacturer/products` |
+| `api/index.test.js` | The stored token being attached to requests, and the session-ended signal firing on `SESSION_INVALID` but **not** on a plain 401 |
+| `context/AuthContext.test.js` | Restoring a session from a stored token, discarding a rejected one, and dropping the user when the session-ended event fires |
+
+`react-scripts test` watches files by default and never exits, so CI passes
+`CI=true` to make it run once and return.
+
+### Two things the runner needs
+
+Both live in code rather than in this document, and both are easy to delete by
+accident:
+
+- **`moduleNameMapper` in `package.json`.** CRA 5 ships Jest 27, which ignores the
+  `exports` field in a package's `package.json`. `react-router-dom` v7 is
+  `exports`-only *and* its `main` points at a `dist/main.js` that is not shipped, so
+  Jest could not resolve it at all — the suite failed before running a single test.
+  The mapping points Jest straight at the shipped CJS build. Jest 28+ reads
+  `exports` itself, so the mapping can go if the runner is ever upgraded.
+- **The `TextEncoder`/`TextDecoder` shim in `src/setupTests.js`.** react-router v7
+  reads `TextEncoder` while the module is loading, and the jsdom environment CRA
+  provides does not define it.
+
+---
+
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every push to `main` and on every pull request.
@@ -153,7 +189,7 @@ reported separately:
 | Job | What it does |
 | --- | ------------ |
 | **Backend tests** | Starts a `postgres:16-alpine` service, runs `npm ci`, then `npm test` — which rebuilds `sokoyetu_test` from `init.sql` plus the migrations, so a broken migration fails the build |
-| **Frontend build** | Runs `npm ci` and `npm run build` to catch build-time breakage (a bad import, a reference to something that was removed) |
+| **Frontend tests and build** | Runs `npm ci`, then `npm test`, then `npm run build` — the build step catches breakage that only shows up at compile time (a bad import, a reference to something that was removed) |
 
 The backend job talks to the service container over `localhost:5432` using the
 same credentials the test suite already defaults to (`sokoyetu` / `sokoyetu`,
@@ -172,7 +208,7 @@ same branch, so a burst of pushes does not queue up stale builds.
 | ------- | ----------- |
 | `npm start` | Development server on port 3000 |
 | `npm run build` | Production build into `build/` |
-| `npm test` | Interactive test runner |
+| `npm test` | Test runner — watches for changes by default; set `CI=true` to run once and exit |
 
 ---
 
@@ -313,8 +349,9 @@ bucket, too high and clients can spoof the header to bypass the limit. Never set
 
 ## Known gaps
 
-- **The frontend has no tests** — only the default Create React App files remain. The API is
-  covered by the backend suite; the React screens are still verified by hand.
+- **The React screens are only partly covered** — the frontend suite covers routing, the nav
+  logic, the API client and the auth state, but the individual screens (sign-in, register,
+  Account, the product and order flows) are still verified by hand.
 - **Phone number is not editable** — it is the login identifier, so changing it needs a verified
   flow (confirm the old number, check the new one is free). Name and location are editable from
   the Account screen.
