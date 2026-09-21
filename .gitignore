@@ -4,6 +4,7 @@ AI_With_Python_Assignment/
 # Nested git backups (keep history aside, don't commit)
 .git.bak/
 **/.git.bak/
+.git-backups/
 
 # Dependencies
 node_modules/

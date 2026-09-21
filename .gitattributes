@@ -1,0 +1,43 @@
+# Normalize line endings to LF in the repository.
+# All source files are UTF-8; do not save them as ANSI/Windows-1252,
+# which corrupts non-ASCII characters such as emoji and box-drawing glyphs.
+* text=auto eol=lf
+
+# Explicit text types
+*.js    text
+*.jsx   text
+*.ts    text
+*.tsx   text
+*.json  text
+*.css   text
+*.html  text
+*.md    text
+*.sql   text
+*.yml   text
+*.yaml  text
+*.env   text
+*.example text
+
+# Windows scripts keep CRLF
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# Binary assets
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.svg   text
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.pdf   binary
+
+# Lockfiles: generated, collapse in diffs
+package-lock.json  -diff linguist-generated=true
+
+# Diff drivers
+*.md    diff=markdown

@@ -1,8 +1,8 @@
 {
   "name": "sokoyetu-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "SokoYetu backend API - Express and PostgreSQL service for the SokoYetu marketplace",
+  "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
@@ -10,9 +10,12 @@
     "db:down": "docker compose down"
   },
   "keywords": [],
-  "author": "",
+  "author": "MujawumukizaBonna",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",

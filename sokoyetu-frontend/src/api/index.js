@@ -38,7 +38,7 @@ export const updateOrderStatus = (id, status) =>
   API.put(`/api/orders/${id}/status`, { status });
 export const getStats = () => API.get('/api/orders/stats');
 
-// â”€â”€ PAYMENTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── PAYMENTS ──────────────────────────────────────
 export const getPawaPayProviders = (country = 'RWA') =>
   API.get('/api/payments/pawapay/providers', { params: { country } });
 export const predictPawaPayProvider = (phoneNumber) =>
