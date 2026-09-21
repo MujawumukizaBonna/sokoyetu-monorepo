@@ -153,18 +153,44 @@ See `sokoyetu-backend/LOCAL_DEVELOPMENT.md` for the full local and deployment wa
 - Keep pawaPay sandbox credentials out of the frontend entirely.
 - Signed pawaPay requests and callbacks are implemented but disabled by default
   (`PAWAPAY_SIGNED_REQUESTS_ENABLED=false`). Enable them only after configuring `PAWAPAY_PUBLIC_KEY_ID`.
+- `PUT /auth/me` only accepts `name` and `location`. It ignores `role`, `password` and `phone`,
+  so it cannot be used to escalate privileges or bypass the password rules.
+
+### Rate limiting
+
+Throttling is applied with `express-rate-limit`. Exceeding a limit returns
+`429` with the same `{ "error": "..." }` shape as the rest of the API.
+
+| Scope | Limit | Keyed on |
+| ----- | ----- | -------- |
+| `POST /auth/login` | 10 failures / 15 min | client IP **+** submitted phone |
+| `POST /auth/register` | 5 / hour | client IP |
+| Everything under `/api` | 300 / 15 min | client IP |
+
+Login is keyed on IP *and* phone so that neither one IP spraying many accounts nor many IPs
+targeting one account gets through. Successful logins do not count towards the limit, so a
+legitimate user signing in on several devices is never locked out. `GET /health` sits outside
+`/api` so monitoring is never throttled.
+
+**`TRUST_PROXY_HOPS` matters.** The service runs behind a proxy, so the client IP comes from
+`X-Forwarded-For`. Set this to the number of proxy hops (1 for Railway/Vercel, 0 for no proxy).
+Getting it wrong breaks rate limiting in one of two ways: too low and every user shares a single
+bucket, too high and clients can spoof the header to bypass the limit. Never set it to `true`.
 
 ---
 
 ## Known gaps
 
-- **No automated tests** — the default Create React App test files remain; no coverage of real flows.
+- **No automated tests** — the default Create React App test files remain. The auth and product
+  flows were verified manually against a local database, but nothing runs in CI.
 - **No CI** — builds and linting are not automated.
 - **Phone number is not editable** — it is the login identifier, so changing it needs a verified
   flow (confirm the old number, check the new one is free). Name and location are editable from
   the Account screen.
 - **No password change or reset** — there is no change-password route and no recovery flow.
-- **No login rate limiting** — `POST /auth/login` is not throttled or lockout-protected.
+- **Rate limits are per-instance and in-memory** — they reset on restart and are not shared
+  across replicas. Fine for a single Railway instance; a multi-instance deployment would need a
+  shared store (e.g. Redis).
 - **No retailer order cancellation** — retailers can place and pay for orders, but cannot cancel one
   from the UI; only the manufacturer can advance an order's status.
 
