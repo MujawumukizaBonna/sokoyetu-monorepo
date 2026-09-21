@@ -127,8 +127,11 @@ route with the current password and strength rules).
 `PUT /auth/password` changes the signed-in user's own password. It requires both `currentPassword`
 and `newPassword`, and rejects a new password under 6 characters or one identical to the current
 one. The account is taken from the token and never from the body, so passing a `userId` cannot be
-used to change someone else's password. Changing a password does **not** invalidate tokens that are
-already signed in — see the note in "Known gaps".
+used to change someone else's password.
+
+Changing a password **revokes every token issued before it**, which signs the user out everywhere.
+The response carries a replacement `token` so the device that made the change stays signed in. See
+"Session revocation" under Security notes.
 
 `GET /products` is public and returns only live listings. `GET /products/mine` requires a
 manufacturer token and returns **all** of that manufacturer's products, including ones hidden
@@ -146,7 +149,13 @@ Health check: `GET /health` returns `200` when the database is reachable, `503` 
 
 Schema lives in `sokoyetu-backend/src/db/schema.sql`, covering `users`, `suppliers`, `products`, `orders`, and `payments`.
 
-For hosted PostgreSQL (Supabase), set `DATABASE_SSL=true` and apply `docker/postgres/migrations/001_checkout_hardening.sql` in the SQL editor.
+For hosted PostgreSQL (Supabase), set `DATABASE_SSL=true` and apply the migrations in
+`docker/postgres/migrations/` through the SQL editor:
+
+- `001_checkout_hardening.sql`
+- `002_session_revocation.sql` — adds `users.token_version`. **Apply this before deploying the code
+  that reads it**, otherwise every authenticated request will fail. Both files are idempotent and
+  safe to re-run.
 
 See `sokoyetu-backend/LOCAL_DEVELOPMENT.md` for the full local and deployment walkthrough, and `sokoyetu-backend/DEPLOYMENT_CHECKLIST.md` before shipping.
 
@@ -166,6 +175,25 @@ See `sokoyetu-backend/LOCAL_DEVELOPMENT.md` for the full local and deployment wa
   owner out of their account.
 - Password rules are enforced server side as well as in the form, so posting straight to the API
   cannot get around the 6 character minimum.
+
+### Session revocation
+
+Tokens are stateless JWTs, so they cannot be un-issued. Revocation works by version instead: each
+token records the `token_version` it was minted with, and `authMiddleware` compares that against
+`users.token_version`, rejecting any token that no longer matches.
+
+Changing a password increments the column, which signs the user out of every other device. The
+change request itself is holding a token that was just invalidated, so the endpoint returns a fresh
+one for the device that made the change.
+
+A 401 that means "this session is over" carries `"code": "SESSION_INVALID"`. The frontend keys off
+that code to clear the stored token and return to sign-in. A 401 **without** the code is an ordinary
+failed attempt — a wrong current password, a wrong sign-in — and deliberately does not sign anyone
+out. Without that distinction, mistyping your password would log you out.
+
+The cost is one primary-key lookup per authenticated request, which is the price of being able to
+revoke a stateless token at all. Tokens issued before `token_version` existed carry no version and
+are treated as `0`, which is the column default, so deploying this does not sign out existing users.
 
 ### Rate limiting
 
@@ -206,9 +234,9 @@ bucket, too high and clients can spoof the header to bypass the limit. Never set
 - **No forgotten-password reset** — a signed-in user can change their password from the Account
   screen, but there is no "forgot password" flow. Phone is the login identifier, so recovery needs
   a verified channel: an SMS code to that number, or an admin-triggered reset.
-- **Existing sessions survive a password change** — tokens are stateless JWTs with a 7 day expiry,
-  so other devices stay signed in after a password change. Revoking them requires a token version
-  column checked in `authMiddleware`.
+- **No "sign out everywhere" button** — changing a password revokes other sessions, but there is no
+  standalone action for a user who wants to drop other devices without changing their password. The
+  mechanism already exists (`token_version`); it just needs an endpoint and a button.
 - **Rate limits are per-instance and in-memory** — they reset on restart and are not shared
   across replicas. Fine for a single Railway instance; a multi-instance deployment would need a
   shared store (e.g. Redis).

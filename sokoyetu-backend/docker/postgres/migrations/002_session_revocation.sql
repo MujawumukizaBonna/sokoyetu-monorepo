@@ -1,0 +1,11 @@
+-- Adds a per-user token version so sessions can be revoked.
+--
+-- Every JWT carries the token_version it was minted with. authMiddleware compares
+-- it against this column and rejects the token when the two disagree, which is
+-- what makes "changing your password signs out your other devices" work.
+--
+-- DEFAULT 0 means existing rows and any token issued before this column existed
+-- are treated as version 0, so deploying this does not sign everybody out.
+--
+-- Idempotent: safe to run more than once.
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS token_version integer NOT NULL DEFAULT 0;

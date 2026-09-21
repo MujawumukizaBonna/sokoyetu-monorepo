@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   password character varying NOT NULL,
   role character varying NOT NULL CHECK (role::text = ANY (ARRAY['retailer'::character varying, 'manufacturer'::character varying]::text[])),
   location character varying,
+  token_version integer NOT NULL DEFAULT 0,
   created_at timestamp without time zone DEFAULT now(),
   CONSTRAINT users_pkey PRIMARY KEY (id)
 );

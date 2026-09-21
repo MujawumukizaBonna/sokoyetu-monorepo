@@ -11,6 +11,27 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
+// Broadcast when the backend says the session is no longer usable, so AuthContext
+// can drop the user and the router can send them back to sign-in.
+export const SESSION_ENDED_EVENT = 'sokoyetu:session-ended';
+
+// A revoked or expired session comes back as 401 with code SESSION_INVALID -
+// which is what a password change on another device produces.
+//
+// Only that code triggers a sign-out. A plain 401 means a failed attempt (a wrong
+// current password, a wrong sign-in) and must leave the session alone, otherwise
+// mistyping your password would log you out.
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && error.response?.data?.code === 'SESSION_INVALID') {
+      localStorage.removeItem('token');
+      window.dispatchEvent(new Event(SESSION_ENDED_EVENT));
+    }
+    return Promise.reject(error);
+  }
+);
+
 // ── AUTH ──────────────────────────────────────────
 export const register = (data) => API.post('/api/auth/register', data);
 export const login = (data) => API.post('/api/auth/login', data);

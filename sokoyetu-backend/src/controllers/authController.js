@@ -2,9 +2,12 @@ const db = require('../db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+// The token carries the token_version it was minted with. authMiddleware compares
+// that against the column on the user row, which is how changing a password is
+// able to invalidate tokens that were already issued.
 const generateToken = (user) => {
   return jwt.sign(
-    { id: user.id, role: user.role, name: user.name },
+    { id: user.id, role: user.role, name: user.name, tv: user.token_version ?? 0 },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
@@ -213,12 +216,23 @@ const changePassword = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-    await db.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, req.user.id]);
+    // Bumping token_version invalidates every token minted before this change,
+    // which is the point: changing a password should sign out the other devices.
+    const updated = await db.query(
+      `UPDATE users
+          SET password = $1,
+              token_version = token_version + 1
+        WHERE id = $2
+       RETURNING id, name, phone, role, location, created_at, token_version`,
+      [hashedPassword, req.user.id]
+    );
 
-    // NOTE: tokens are stateless JWTs with a 7 day expiry, so sessions that are
-    // already signed in stay valid after this change. Revoking them needs a
-    // token version column; tracked in the README "Known gaps".
-    res.json({ message: 'Password updated successfully' });
+    // This request is holding a token that was just invalidated, so hand back a
+    // fresh one. Without it the user would be signed out of the very device they
+    // are using, along with all the others.
+    const token = generateToken(updated.rows[0]);
+
+    res.json({ message: 'Password updated successfully', token });
   } catch (err) {
     if (handleDatabaseError(res, err)) {
       return;

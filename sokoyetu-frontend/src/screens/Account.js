@@ -60,7 +60,7 @@ function SuccessNote({ children }) {
 export default function Account() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logoutUser, updateUser } = useAuth();
+  const { user, logoutUser, updateUser, loginUser } = useAuth();
   const isManufacturer = user?.role === 'manufacturer';
 
   const nav = isManufacturer ? MANUFACTURER_NAV : RETAILER_NAV;
@@ -183,7 +183,13 @@ export default function Account() {
     setError('');
 
     try {
-      await changePassword({ currentPassword: current, newPassword: next });
+      const res = await changePassword({ currentPassword: current, newPassword: next });
+
+      // Changing the password revokes every token that already existed, including
+      // the one this tab is using. The response carries a replacement, so store it
+      // and this device stays signed in while the others are signed out.
+      if (res.data?.token) loginUser(res.data.token, user);
+
       setPasswords({ current: '', next: '', confirm: '' });
       setSavedPassword(true);
       setTimeout(() => setSavedPassword(false), 2500);
@@ -384,7 +390,7 @@ export default function Account() {
               Choose something at least {MIN_PASSWORD_LENGTH} characters long that you do not use elsewhere.
             </p>
 
-            {savedPassword && <SuccessNote>Password changed.</SuccessNote>}
+            {savedPassword && <SuccessNote>Password changed. Any other devices have been signed out.</SuccessNote>}
 
             <div className="stack" style={{ marginBottom: 8 }}>
               <div className="field">

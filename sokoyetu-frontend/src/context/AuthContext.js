@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { getMe } from '../api';
+import { getMe, SESSION_ENDED_EVENT } from '../api';
 
 const AuthContext = createContext(null);
 
@@ -17,6 +17,15 @@ export function AuthProvider({ children }) {
     } else {
       setLoading(false);
     }
+  }, []);
+
+  // A revoked session - a password change on another device, or an expired token -
+  // is announced by the API client. Dropping the user here lets the router send
+  // them back to sign-in rather than leaving them on a screen that cannot load.
+  useEffect(() => {
+    const handleSessionEnded = () => setUser(null);
+    window.addEventListener(SESSION_ENDED_EVENT, handleSessionEnded);
+    return () => window.removeEventListener(SESSION_ENDED_EVENT, handleSessionEnded);
   }, []);
 
   const loginUser = (token, userData) => {
