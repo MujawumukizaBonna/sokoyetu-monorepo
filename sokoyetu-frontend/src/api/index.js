@@ -26,6 +26,7 @@ export const updateMySupplier = (data) => API.put('/api/suppliers/my', data);
 export const getProducts = (supplierId) =>
   API.get('/api/products', { params: { supplier_id: supplierId } });
 export const getProductById = (id) => API.get(`/api/products/${id}`);
+export const getMyProducts = () => API.get('/api/products/mine');
 export const createProduct = (data) => API.post('/api/products', data);
 export const updateProduct = (id, data) => API.put(`/api/products/${id}`, data);
 export const deleteProduct = (id) => API.delete(`/api/products/${id}`);

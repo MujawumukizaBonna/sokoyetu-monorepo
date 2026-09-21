@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { getSupplierById, getProducts } from '../api';
 import RoleShell from '../components/RoleShell';
+import { RETAILER_NAV, RETAILER_BOTTOM_NAV, matchesPath } from '../components/navItems';
 
 export default function SupplierDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [supplier, setSupplier] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,11 +29,7 @@ export default function SupplierDetail() {
     <RoleShell
       brand="SokoYetu"
       description="Supplier details, product listings, and order flow for retailers."
-      items={[
-        { icon: '🏪', label: 'Browse suppliers', meta: 'Explore manufacturers', path: '/retailer', match: ['/retailer', '/supplier', '/order'] },
-        { icon: '📦', label: 'My orders', meta: 'Track recent orders', path: '/orders', match: '/orders' },
-        { icon: '👤', label: 'Account', meta: 'Profile and settings', path: '/retailer', match: '/retailer' },
-      ]}
+      items={RETAILER_NAV}
     >
       <div className="dashboard-layout surface-page">
         <div className="nav">
@@ -105,12 +103,12 @@ export default function SupplierDetail() {
         </div>
 
         <div className="bottom-nav">
-        {[
-          { icon: '🏪', label: 'Browse', path: '/retailer' },
-          { icon: '📦', label: 'Orders', path: '/orders' },
-          { icon: '👤', label: 'Account', path: '/retailer' },
-        ].map(item => (
-          <button key={item.label} className="bnav-item" onClick={() => navigate(item.path)}>
+        {RETAILER_BOTTOM_NAV.map(item => (
+          <button
+            key={item.label}
+            className={`bnav-item ${matchesPath(location.pathname, item.match) ? 'active' : ''}`}
+            onClick={() => navigate(item.path)}
+          >
             <span style={{ fontSize: 20 }}>{item.icon}</span>
             <span>{item.label}</span>
           </button>

@@ -113,11 +113,19 @@ All routes are prefixed with `/api`.
 | ---- | --------- |
 | Auth | `POST /auth/register`, `POST /auth/login`, `GET /auth/me` |
 | Suppliers | `GET /suppliers`, `GET /suppliers/:id`, `GET /suppliers/my`, `PUT /suppliers/my` |
-| Products | `GET /products`, `GET /products/:id`, `POST /products`, `PUT /products/:id`, `DELETE /products/:id` |
+| Products | `GET /products`, `GET /products/mine`, `GET /products/:id`, `POST /products`, `PUT /products/:id`, `DELETE /products/:id` |
 | Orders | `POST /orders`, `GET /orders/my`, `GET /orders/incoming`, `PUT /orders/:id/status`, `GET /orders/stats` |
 | Payments | `GET /payments/pawapay/providers`, `POST /payments/pawapay/predict-provider`, `POST /payments/pawapay/deposit`, `GET /payments/pawapay/deposit/:id` |
 
 Authentication uses a bearer token: `Authorization: Bearer <jwt>`.
+
+`GET /products` is public and returns only live listings. `GET /products/mine` requires a
+manufacturer token and returns **all** of that manufacturer's products, including ones hidden
+from retailers, so they can be edited or made live again.
+
+`DELETE /products/:id` is a soft delete: it sets `available = false`, hiding the listing from
+retailers without destroying the row or its order history. Restore it with
+`PUT /products/:id` and `{ "available": true }`.
 
 Health check: `GET /health` returns `200` when the database is reachable, `503` otherwise.
 
@@ -145,13 +153,13 @@ See `sokoyetu-backend/LOCAL_DEVELOPMENT.md` for the full local and deployment wa
 
 ## Known gaps
 
-These are known and deliberately not yet implemented:
-
-- **Account / profile screen** — the sidebar shows an "Account" entry that currently routes back to the role home page. There is no dedicated profile or settings view yet.
-- **Product editing and deletion** — the backend exposes `PUT /products/:id` and `DELETE /products/:id`, and the frontend API client wraps them, but no UI calls them. Products can only be created.
-- **Supplier profile editing** — `GET /suppliers/my` and `PUT /suppliers/my` exist in both backend and the frontend API client, with no UI yet.
 - **No automated tests** — the default Create React App test files remain; no coverage of real flows.
 - **No CI** — builds and linting are not automated.
+- **Retailer profile editing** — manufacturers can edit their business profile from the Account
+  screen, but retailers cannot change their own name or location. There is no `PUT /auth/me` endpoint.
+- **No password reset** — accounts are phone + password with no recovery flow.
+- **No retailer order cancellation** — retailers can place and pay for orders, but cannot cancel one
+  from the UI; only the manufacturer can advance an order's status.
 
 ---
 

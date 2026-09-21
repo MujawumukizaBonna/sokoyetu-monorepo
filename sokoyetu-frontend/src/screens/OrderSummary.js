@@ -11,6 +11,7 @@ import {
 } from '../api';
 import { useAuth } from '../context/AuthContext';
 import RoleShell from '../components/RoleShell';
+import { RETAILER_NAV } from '../components/navItems';
 
 const COUNTRY_CODES = {
   Rwanda: 'RWA',
@@ -287,11 +288,7 @@ export default function OrderSummary() {
       <RoleShell
         brand="SokoYetu"
         description="Retail order checkout and tracking."
-        items={[
-          { icon: '🏪', label: 'Browse suppliers', meta: 'Explore manufacturers', path: '/retailer', match: ['/retailer', '/supplier', '/order'] },
-          { icon: '📦', label: 'My orders', meta: 'Track recent orders', path: '/orders', match: '/orders' },
-          { icon: '👤', label: 'Account', meta: 'Profile and settings', path: '/retailer', match: '/retailer' },
-        ]}
+        items={RETAILER_NAV}
       >
         <div className="confirmation-state surface-page">
           <div className="confirmation-card">
@@ -320,11 +317,7 @@ export default function OrderSummary() {
     <RoleShell
       brand="SokoYetu"
       description="Retail order checkout and tracking."
-      items={[
-        { icon: '🏪', label: 'Browse suppliers', meta: 'Explore manufacturers', path: '/retailer', match: ['/retailer', '/supplier', '/order'] },
-        { icon: '📦', label: 'My orders', meta: 'Track recent orders', path: '/orders', match: '/orders' },
-        { icon: '👤', label: 'Account', meta: 'Profile and settings', path: '/retailer', match: '/retailer' },
-      ]}
+      items={RETAILER_NAV}
     >
       <div className="dashboard-layout surface-page">
         <div className="nav">

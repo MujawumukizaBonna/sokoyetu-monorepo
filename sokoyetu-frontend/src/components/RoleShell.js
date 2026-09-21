@@ -1,16 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-
-function matchesPath(pathname, match) {
-  if (Array.isArray(match)) {
-    return match.some(pattern => matchesPath(pathname, pattern));
-  }
-
-  if (typeof match === 'function') {
-    return match(pathname);
-  }
-
-  return pathname === match || pathname.startsWith(`${match}/`);
-}
+import { matchesPath } from './navItems';
 
 export default function RoleShell({ brand, description, items, onLogout, children }) {
   const location = useLocation();

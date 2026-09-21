@@ -10,6 +10,8 @@ import OrderSummary from './screens/OrderSummary';
 import OrderHistory from './screens/OrderHistory';
 import ManufacturerHome from './screens/ManufacturerHome';
 import AddProduct from './screens/AddProduct';
+import MyProducts from './screens/MyProducts';
+import Account from './screens/Account';
 
 function PrivateRoute({ children, role }) {
   const { user, loading } = useAuth();
@@ -44,8 +46,16 @@ function AppRoutes() {
       <Route path="/manufacturer" element={
         <PrivateRoute role="manufacturer"><ManufacturerHome /></PrivateRoute>
       } />
+      <Route path="/manufacturer/products" element={
+        <PrivateRoute role="manufacturer"><MyProducts /></PrivateRoute>
+      } />
       <Route path="/manufacturer/add-product" element={
         <PrivateRoute role="manufacturer"><AddProduct /></PrivateRoute>
+      } />
+
+      {/* Shared routes */}
+      <Route path="/account" element={
+        <PrivateRoute><Account /></PrivateRoute>
       } />
 
       <Route path="*" element={<Navigate to="/" />} />

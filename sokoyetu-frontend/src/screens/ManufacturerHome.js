@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getStats, getIncomingOrders, updateOrderStatus } from '../api';
 import { useAuth } from '../context/AuthContext';
 import RoleShell from '../components/RoleShell';
+import { MANUFACTURER_NAV, MANUFACTURER_BOTTOM_NAV, matchesPath } from '../components/navItems';
 
 const statusLabel = { pending: 'Pending', confirmed: 'Confirmed', in_transit: 'In transit', delivered: 'Delivered', cancelled: 'Cancelled' };
 const statusBadge = { pending: 'badge-amber', confirmed: 'badge-green', in_transit: 'badge-blue', delivered: 'badge-blue', cancelled: 'badge-red' };
@@ -11,6 +12,7 @@ const nextLabel = { pending: 'Confirm order', confirmed: 'Mark in transit', in_t
 
 export default function ManufacturerHome() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logoutUser } = useAuth();
   const [stats, setStats] = useState(null);
   const [orders, setOrders] = useState([]);
@@ -40,11 +42,7 @@ export default function ManufacturerHome() {
       brand="Manufacturer Hub"
       description={`Hi, ${user?.name?.split(' ')[0] || 'there'}. Manage stock, listings, and incoming retailer orders.`}
       onLogout={logoutUser}
-      items={[
-        { icon: '📊', label: 'Dashboard', meta: 'Performance overview', path: '/manufacturer', match: '/manufacturer' },
-        { icon: '📦', label: 'Add product', meta: 'Create listings', path: '/manufacturer/add-product', match: '/manufacturer/add-product' },
-        { icon: '👤', label: 'Account', meta: 'Profile and settings', path: '/manufacturer', match: '/manufacturer' },
-      ]}
+      items={MANUFACTURER_NAV}
     >
       <div className="dashboard-layout surface-page">
         <div className="nav">
@@ -130,9 +128,12 @@ export default function ManufacturerHome() {
                 </div>
               )}
 
-              <div style={{ padding: '16px 0 0' }}>
-                <button className="btn-primary" onClick={() => navigate('/manufacturer/add-product')}>
+              <div style={{ padding: '16px 0 0', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button className="btn-primary" style={{ flex: 1 }} onClick={() => navigate('/manufacturer/add-product')}>
                   + Add new product listing
+                </button>
+                <button className="btn-ghost" style={{ flex: 1 }} onClick={() => navigate('/manufacturer/products')}>
+                  Manage products
                 </button>
               </div>
 
@@ -143,12 +144,12 @@ export default function ManufacturerHome() {
         </div>
 
         <div className="bottom-nav">
-        {[
-          { icon: '📊', label: 'Dashboard', path: '/manufacturer', active: true },
-          { icon: '📦', label: 'Add product', path: '/manufacturer/add-product' },
-          { icon: '👤', label: 'Account', path: '/manufacturer' },
-        ].map(item => (
-          <button key={item.label} className={`bnav-item ${item.active ? 'active' : ''}`} onClick={() => navigate(item.path)}>
+        {MANUFACTURER_BOTTOM_NAV.map(item => (
+          <button
+            key={item.label}
+            className={`bnav-item ${matchesPath(location.pathname, item.match) ? 'active' : ''}`}
+            onClick={() => navigate(item.path)}
+          >
             <span style={{ fontSize: 20 }}>{item.icon}</span>
             <span>{item.label}</span>
           </button>

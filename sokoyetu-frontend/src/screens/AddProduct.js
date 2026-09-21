@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createProduct } from '../api';
 import RoleShell from '../components/RoleShell';
+import { MANUFACTURER_NAV } from '../components/navItems';
 
 const CATEGORIES = ['Food & beverage', 'Cleaning', 'Textiles', 'Hardware', 'Other'];
 const EMOJIS = ['🥛', '🧼', '🌾', '🌽', '🍚', '🧴', '🧂', '🧪', '🧵', '📦'];
@@ -56,11 +57,7 @@ export default function AddProduct() {
       <RoleShell
         brand="Manufacturer Hub"
         description="Publish products and manage incoming retailer demand."
-        items={[
-          { icon: '📊', label: 'Dashboard', meta: 'Performance overview', path: '/manufacturer', match: '/manufacturer' },
-          { icon: '📦', label: 'Add product', meta: 'Create listings', path: '/manufacturer/add-product', match: '/manufacturer/add-product' },
-          { icon: '👤', label: 'Account', meta: 'Profile and settings', path: '/manufacturer', match: '/manufacturer' },
-        ]}
+        items={MANUFACTURER_NAV}
       >
         <div className="confirmation-state surface-page">
           <div className="confirmation-card">
@@ -132,11 +129,7 @@ export default function AddProduct() {
     <RoleShell
       brand="Manufacturer Hub"
       description="Publish products and manage incoming retailer demand."
-      items={[
-        { icon: '📊', label: 'Dashboard', meta: 'Performance overview', path: '/manufacturer', match: '/manufacturer' },
-        { icon: '📦', label: 'Add product', meta: 'Create listings', path: '/manufacturer/add-product', match: '/manufacturer/add-product' },
-        { icon: '👤', label: 'Account', meta: 'Profile and settings', path: '/manufacturer', match: '/manufacturer' },
-      ]}
+      items={MANUFACTURER_NAV}
     >
       <div className="dashboard-layout surface-page">
         <div className="nav">

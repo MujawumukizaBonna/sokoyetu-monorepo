@@ -71,7 +71,6 @@ CREATE TABLE public.payments (
   payment_method character varying NOT NULL,
   phone_number character varying,
   provider_code character varying,
-  provider_code character varying,
   status character varying DEFAULT 'pending'::character varying CHECK (status::text = ANY (ARRAY['pending'::character varying, 'processing'::character varying, 'completed'::character varying, 'failed'::character varying, 'cancelled'::character varying]::text[])),
   provider_reference character varying,
   external_id uuid DEFAULT uuid_generate_v4(),

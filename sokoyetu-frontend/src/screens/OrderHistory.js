@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getMyOrders } from '../api';
 import RoleShell from '../components/RoleShell';
+import { RETAILER_NAV, RETAILER_BOTTOM_NAV, matchesPath } from '../components/navItems';
 
 const statusBadge = { confirmed: 'badge-green', pending: 'badge-amber', in_transit: 'badge-blue', delivered: 'badge-blue', cancelled: 'badge-red' };
 const statusLabel = { confirmed: 'Confirmed', pending: 'Pending', in_transit: 'In transit', delivered: 'Delivered', cancelled: 'Cancelled' };
@@ -10,6 +11,7 @@ const paymentLabel = { pending: 'Payment pending', processing: 'Payment processi
 
 export default function OrderHistory() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,11 +26,7 @@ export default function OrderHistory() {
     <RoleShell
       brand="SokoYetu"
       description="Browse suppliers, review orders, and keep your buying workflow in one place."
-      items={[
-        { icon: '🏪', label: 'Browse suppliers', meta: 'Explore manufacturers', path: '/retailer', match: ['/retailer', '/supplier', '/order'] },
-        { icon: '📦', label: 'My orders', meta: 'Track recent orders', path: '/orders', match: '/orders' },
-        { icon: '👤', label: 'Account', meta: 'Profile and settings', path: '/retailer', match: '/retailer' },
-      ]}
+      items={RETAILER_NAV}
     >
       <div className="dashboard-layout surface-page">
         <div className="nav">
@@ -87,12 +85,12 @@ export default function OrderHistory() {
         </div>
 
         <div className="bottom-nav">
-        {[
-          { icon: '🏪', label: 'Browse', path: '/retailer' },
-          { icon: '📦', label: 'Orders', path: '/orders', active: true },
-          { icon: '👤', label: 'Account', path: '/retailer' },
-        ].map(item => (
-          <button key={item.label} className={`bnav-item ${item.active ? 'active' : ''}`} onClick={() => navigate(item.path)}>
+        {RETAILER_BOTTOM_NAV.map(item => (
+          <button
+            key={item.label}
+            className={`bnav-item ${matchesPath(location.pathname, item.match) ? 'active' : ''}`}
+            onClick={() => navigate(item.path)}
+          >
             <span style={{ fontSize: 20 }}>{item.icon}</span>
             <span>{item.label}</span>
           </button>

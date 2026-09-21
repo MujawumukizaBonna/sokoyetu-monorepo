@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getSuppliers } from '../api';
 import { useAuth } from '../context/AuthContext';
 import RoleShell from '../components/RoleShell';
+import { RETAILER_NAV, RETAILER_BOTTOM_NAV, matchesPath } from '../components/navItems';
 
 const CATEGORIES = ['All', 'Food & beverage', 'Cleaning', 'Textiles', 'Hardware'];
 
 export default function RetailerHome() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logoutUser } = useAuth();
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,11 +31,7 @@ export default function RetailerHome() {
       brand="SokoYetu"
       description={`Hi, ${user?.name?.split(' ')[0] || 'there'}. Browse suppliers and manage retailer orders from one place.`}
       onLogout={logoutUser}
-      items={[
-        { icon: '🏪', label: 'Browse suppliers', meta: 'Explore manufacturers', path: '/retailer', match: ['/retailer', '/supplier', '/order'] },
-        { icon: '📦', label: 'My orders', meta: 'Track recent orders', path: '/orders', match: '/orders' },
-        { icon: '👤', label: 'Account', meta: 'Profile and settings', path: '/retailer', match: '/retailer' },
-      ]}
+      items={RETAILER_NAV}
     >
       <div className="dashboard-layout surface-page">
         <div className="nav">
@@ -120,12 +118,12 @@ export default function RetailerHome() {
         </div>
 
         <div className="bottom-nav">
-        {[
-          { icon: '🏪', label: 'Browse', path: '/retailer', active: true },
-          { icon: '📦', label: 'Orders', path: '/orders' },
-          { icon: '👤', label: 'Account', path: '/retailer' },
-        ].map(item => (
-          <button key={item.label} className={`bnav-item ${item.active ? 'active' : ''}`} onClick={() => navigate(item.path)}>
+        {RETAILER_BOTTOM_NAV.map(item => (
+          <button
+            key={item.label}
+            className={`bnav-item ${matchesPath(location.pathname, item.match) ? 'active' : ''}`}
+            onClick={() => navigate(item.path)}
+          >
             <span style={{ fontSize: 20 }}>{item.icon}</span>
             <span>{item.label}</span>
           </button>

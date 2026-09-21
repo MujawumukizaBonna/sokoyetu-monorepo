@@ -20,6 +20,24 @@ const getProducts = async (req, res) => {
   }
 };
 
+// GET /api/products/mine — manufacturer sees ALL of their own products,
+// including ones deactivated with `available = false`, so they can reactivate them.
+const getMyProducts = async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT p.* FROM products p
+       JOIN suppliers s ON p.supplier_id = s.id
+       WHERE s.user_id = $1
+       ORDER BY p.available DESC, p.created_at DESC`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Get my products error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 const getProductById = async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM products WHERE id = $1 AND available = true', [req.params.id]);
@@ -90,4 +108,4 @@ const deleteProduct = async (req, res) => {
   }
 };
 
-module.exports = { getProducts, getProductById, createProduct, updateProduct, deleteProduct };
+module.exports = { getProducts, getMyProducts, getProductById, createProduct, updateProduct, deleteProduct };
