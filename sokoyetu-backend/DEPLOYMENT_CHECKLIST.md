@@ -2,13 +2,16 @@
 
 ## Before production
 
-- Apply `docker/postgres/migrations/001_checkout_hardening.sql` to the production database.
+- Migrations apply automatically on startup (`src/db/migrate.js`), so nothing needs applying by hand.
+  Confirm the deploy logs a clean start: the backend refuses to listen if a migration fails or a
+  required column is missing, rather than serving traffic against a schema it cannot read.
 - Set a long, unique `JWT_SECRET`; never deploy the example value.
 - Set `FRONTEND_URL` to the exact public frontend address and set `REACT_APP_API_URL` to the public API address.
 - Use the production pawaPay base URL and production API token only after sandbox checkout has passed.
 - Configure `PAWAPAY_CALLBACK_URL` as a public HTTPS endpoint ending in `/api/payments/pawapay/callback/deposit`.
 - Set `PAWAPAY_SIGNED_CALLBACKS_ENABLED=true` for production and confirm callback signature verification with pawaPay.
-- Confirm the deployment database includes `payments.provider_code` and `products.description`.
+- If the database user may not run DDL, set `MIGRATIONS_ON_STARTUP=false` and apply the migrations
+  yourself with `npm run db:migrate`. Verification still runs, so a mismatch still stops the boot.
 
 ## Release checks
 

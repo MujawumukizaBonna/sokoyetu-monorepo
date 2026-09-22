@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const db = require('./db');
+const { migrate } = require('./db/migrate');
 const { apiLimiter } = require('./middleware/rateLimit');
 
 const app = express();
@@ -82,12 +83,38 @@ app.use((err, req, res, next) => {
 });
 
 // Exported so tests can bind the app to an ephemeral port. Listening only when
-// this file is the entry point keeps `npm start` behaving exactly as before.
+// this file is the entry point keeps `npm start` behaving exactly as before, and
+// it keeps migrations out of the test run - tests build their own database in
+// tests/setup-db.js and require this module rather than spawning it.
 const PORT = process.env.PORT || 5000;
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`SokoYetu backend running on port ${PORT}`);
-  });
+  // Migrations run before the port opens, so a build never serves traffic
+  // against a schema it cannot read. Before this existed, shipping a release
+  // that read a new column against a database nobody had altered by hand meant
+  // every authenticated request failed with a 500.
+  //
+  // Set MIGRATIONS_ON_STARTUP=false where the database user is not allowed to
+  // run DDL. The schema is still verified before listening - it is just not
+  // changed - so a mismatch stops the boot either way.
+  const applyMigrations = process.env.MIGRATIONS_ON_STARTUP !== 'false';
+
+  migrate({ apply: applyMigrations })
+    .then(({ applied }) => {
+      if (!applyMigrations) {
+        console.log('Migrations skipped (MIGRATIONS_ON_STARTUP=false); schema verified.');
+      } else if (applied.length > 0) {
+        console.log(`Applied ${applied.length} migration(s): ${applied.join(', ')}`);
+      }
+
+      app.listen(PORT, () => {
+        console.log(`SokoYetu backend running on port ${PORT}`);
+      });
+    })
+    .catch((err) => {
+      console.error('Refusing to start: the database is not ready for this build.');
+      console.error(err.message);
+      process.exit(1);
+    });
 }
 
 module.exports = app;

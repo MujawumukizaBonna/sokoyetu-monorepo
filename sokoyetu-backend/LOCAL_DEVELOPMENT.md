@@ -72,7 +72,10 @@ JWT_SECRET=a_different_long_random_production_value
 FRONTEND_URL=https://your-frontend-domain
 ```
 
-4. Run `docker/postgres/migrations/001_checkout_hardening.sql` in the Supabase SQL editor.
+4. Migrations apply automatically when the backend boots, so there is nothing to run in the Supabase SQL
+   editor. Watch the first deploy's logs: the service refuses to start if a migration fails or a required
+   column is missing. If the database user is not allowed to run DDL, set `MIGRATIONS_ON_STARTUP=false`
+   and apply them yourself with `npm run db:migrate` before deploying.
 5. Set the pawaPay production values only when its sandbox payment test passes.
 
 Never put Supabase passwords, JWT secrets, or pawaPay tokens in the frontend project or commit them to Git.

@@ -1,5 +1,14 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Tracks which files in docker/postgres/migrations have been applied. Created
+-- here so a brand-new database and a migrated one end up identical. See
+-- src/db/migrate.js, which creates it too if it is missing.
+CREATE TABLE IF NOT EXISTS public.schema_migrations (
+  name text NOT NULL,
+  applied_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT schema_migrations_pkey PRIMARY KEY (name)
+);
+
 CREATE TABLE IF NOT EXISTS public.users (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   name character varying NOT NULL,

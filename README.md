@@ -90,10 +90,12 @@ npm start          # http://localhost:3000
 
 | Command | Description |
 | ------- | ----------- |
-| `npm start` | Run the server (`node src/server.js`) |
+| `npm start` | Run the server (`node src/server.js`) — applies migrations before listening |
 | `npm run dev` | Run with nodemon for auto-reload |
 | `npm run db:up` | Start the PostgreSQL container |
 | `npm run db:down` | Stop the containers |
+| `npm run db:migrate` | Apply pending migrations to the configured database |
+| `npm run db:verify` | Check the schema without writing anything |
 | `npm test` | Rebuild the test database, then run the whole suite |
 | `npm run test:setup` | Only rebuild the test database |
 | `npm run test:watch` | Re-run on change |
@@ -264,15 +266,44 @@ Health check: `GET /health` returns `200` when the database is reachable, `503` 
 
 ## Database
 
-Schema lives in `sokoyetu-backend/src/db/schema.sql`, covering `users`, `suppliers`, `products`, `orders`, and `payments`.
+Schema lives in `sokoyetu-backend/src/db/schema.sql`, covering `users`, `suppliers`, `products`,
+`orders`, and `payments`.
 
-For hosted PostgreSQL (Supabase), set `DATABASE_SSL=true` and apply the migrations in
-`docker/postgres/migrations/` through the SQL editor:
+### Migrations run on startup
 
-- `001_checkout_hardening.sql`
-- `002_session_revocation.sql` — adds `users.token_version`. **Apply this before deploying the code
-  that reads it**, otherwise every authenticated request will fail. Both files are idempotent and
-  safe to re-run.
+The files in `docker/postgres/migrations/` are applied automatically before the backend opens its
+port — `src/db/migrate.js`, called from `src/server.js`. Each applied file is recorded in a
+`schema_migrations` table, so a restart reapplies nothing, and the runner then verifies that the
+columns the code reads actually exist.
+
+This exists because it used to be a manual step, and that was a live footgun. Shipping a release
+that read `users.token_version` against a database nobody had altered by hand meant **every
+authenticated request returned a 500** — and nothing in the repo caught it, because migrations were
+only ever applied to a brand-new database or by the test setup. Now the schema change and the code
+that needs it travel together.
+
+If a migration fails, or the verification does not pass, **the backend refuses to start** rather
+than serving traffic against a schema it cannot read. That is deliberate: one loud startup error
+beats a stream of 500s.
+
+Three things worth knowing:
+
+- **Applying by hand** — `npm run db:migrate` applies them to whatever `DATABASE_URL` (or the `PG*`
+  variables) points at. `npm run db:verify` checks the schema without writing anything.
+- **`MIGRATIONS_ON_STARTUP=false`** skips the *applying*, for a database whose user is not allowed
+  to run DDL. Verification still runs, so a mismatch still stops the boot.
+- **Concurrency is handled without an advisory lock.** Two instances booting at once both try to
+  insert the same row in `schema_migrations`; the second blocks, then sees the conflict and skips.
+  The claim and the DDL share one transaction, so a migration that fails is rolled back and left
+  unrecorded, and the next boot retries it. An advisory lock would not survive a transaction-mode
+  connection pooler, which is how hosted Postgres is often reached.
+
+Both migration files are idempotent and safe to re-run. The session-revocation change on its own,
+if you would rather apply it directly in the Supabase SQL editor:
+
+```sql
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS token_version integer NOT NULL DEFAULT 0;
+```
 
 See `sokoyetu-backend/LOCAL_DEVELOPMENT.md` for the full local and deployment walkthrough, and `sokoyetu-backend/DEPLOYMENT_CHECKLIST.md` before shipping.
 

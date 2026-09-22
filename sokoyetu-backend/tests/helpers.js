@@ -122,5 +122,6 @@ module.exports = {
   request,
   uniquePhone,
   registerUser,
+  assertConnectedToTestDatabase,
   getBaseUrl: () => baseUrl,
 };
