@@ -109,11 +109,16 @@ export default function OrderSummary() {
   useEffect(() => {
     getProductById(productId)
       .then((res) => {
+        // A missing product is a normal outcome, not an exception: fall through
+        // to the "not found" state instead of throwing on its absent fields.
+        if (!res.data) return null;
         setProduct(res.data);
         setQty(res.data.moq);
         return getSupplierById(res.data.supplier_id);
       })
-      .then((res) => setSupplier(res.data))
+      .then((res) => {
+        if (res) setSupplier(res.data);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [productId]);
@@ -427,9 +432,12 @@ export default function OrderSummary() {
                       >
                         {providerLoading && <option>Loading providers...</option>}
                         {!providerLoading && providerOptions.length === 0 && <option value="">No providers available</option>}
-                        {providerOptions.map((provider) => (
-                          <option key={provider.provider} value={provider.provider}>
-                            {provider.displayName || provider.provider}
+                        {providerOptions.map((provider, index) => (
+                          <option
+                            key={provider.provider || provider.displayName || index}
+                            value={provider.provider || ''}
+                          >
+                            {provider.displayName || provider.provider || 'Unnamed provider'}
                           </option>
                         ))}
                       </select>

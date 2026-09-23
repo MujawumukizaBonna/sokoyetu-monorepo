@@ -153,8 +153,8 @@ npm test
 ```
 
 The frontend suite runs on Jest through `react-scripts test`, using the
-`@testing-library/*` packages already listed in `package.json`. 81 tests across
-7 files:
+`@testing-library/*` packages already listed in `package.json`. 99 tests across
+8 files:
 
 | File | Covers |
 | ---- | ------ |
@@ -165,6 +165,12 @@ The frontend suite runs on Jest through `react-scripts test`, using the
 | `screens/Login.test.js` | Empty-field validation, the role-mismatch guard (a manufacturer's number entered on the retailer form is refused without signing anyone in), Enter-to-submit, and the 429 throttle message |
 | `screens/Register.test.js` | Field and password-length validation, both roles' payloads, role-specific labels, and the "phone already registered" message |
 | `screens/Account.test.js` | Profile editing, every password-change validation branch, storing the replacement token, the two-step sign-out-everywhere confirm, and the manufacturer-only business profile |
+| `screens/OrderSummary.test.js` | The checkout flow — MOQ-stepped quantity, the total including the flat delivery fee, the confirm button's disabled states, phone normalisation (`0788123456` → `250788123456`), country derivation, and each payment outcome. Includes the guard that a **retry reuses the existing order** rather than creating a second one and reserving stock twice |
+
+A failed payment deliberately renders its reason in two places — the error box at
+the top of the form and the note under the payment status card — so those
+assertions match the pair with `findAllByText`. A plain `findByText` throws when
+it matches more than one node.
 
 `react-scripts test` watches files by default and never exits, so CI passes
 `CI=true` to make it run once and return.
@@ -384,9 +390,9 @@ bucket, too high and clients can spoof the header to bypass the limit. Never set
 
 ## Known gaps
 
-- **Some React screens are still hand-verified** — `Login`, `Register` and `Account` have tests, but
-  the browsing and ordering screens (`RetailerHome`, `SupplierDetail`, `OrderSummary`,
-  `OrderHistory`, `ManufacturerHome`, `AddProduct`, `MyProducts`) do not.
+- **Some React screens are still hand-verified** — `Login`, `Register`, `Account` and `OrderSummary`
+  have tests, but the browsing screens (`RetailerHome`, `SupplierDetail`, `OrderHistory`,
+  `ManufacturerHome`, `AddProduct`, `MyProducts`) do not.
 - **Phone number is not editable** — it is the login identifier, so changing it needs a verified
   flow (confirm the old number, check the new one is free). Name and location are editable from
   the Account screen.
