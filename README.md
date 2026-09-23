@@ -153,8 +153,8 @@ npm test
 ```
 
 The frontend suite runs on Jest through `react-scripts test`, using the
-`@testing-library/*` packages already listed in `package.json`. 99 tests across
-8 files:
+`@testing-library/*` packages already listed in `package.json`. 130 tests across
+10 files:
 
 | File | Covers |
 | ---- | ------ |
@@ -166,6 +166,8 @@ The frontend suite runs on Jest through `react-scripts test`, using the
 | `screens/Register.test.js` | Field and password-length validation, both roles' payloads, role-specific labels, and the "phone already registered" message |
 | `screens/Account.test.js` | Profile editing, every password-change validation branch, storing the replacement token, the two-step sign-out-everywhere confirm, and the manufacturer-only business profile |
 | `screens/OrderSummary.test.js` | The checkout flow — MOQ-stepped quantity, the total including the flat delivery fee, the confirm button's disabled states, phone normalisation (`0788123456` → `250788123456`), country derivation, and each payment outcome. Includes the guard that a **retry reuses the existing order** rather than creating a second one and reserving stock twice |
+| `screens/MyProducts.test.js` | Listing management — the live/hidden counts, editing with every validation branch, the trimmed-name and parsed-number payload, and the hide / make-live round trip. Includes the guard that a **failed hide does not flip the badge**, so the list never claims a change the server rejected |
+| `screens/AddProduct.test.js` | The three-step wizard — step navigation, the required-field gate, the payload (numbers parsed, blank stock defaulting to 0), the minimum-order-value calculation, the icon preview, and the reset-and-list-another path |
 
 A failed payment deliberately renders its reason in two places — the error box at
 the top of the form and the note under the payment status card — so those
@@ -390,9 +392,10 @@ bucket, too high and clients can spoof the header to bypass the limit. Never set
 
 ## Known gaps
 
-- **Some React screens are still hand-verified** — `Login`, `Register`, `Account` and `OrderSummary`
-  have tests, but the browsing screens (`RetailerHome`, `SupplierDetail`, `OrderHistory`,
-  `ManufacturerHome`, `AddProduct`, `MyProducts`) do not.
+- **Some React screens are still hand-verified** — `Login`, `Register`, `Account`, `OrderSummary`,
+  `MyProducts` and `AddProduct` have tests, but `RetailerHome`, `SupplierDetail`, `OrderHistory`,
+  `ManufacturerHome` and the `RoleSelect` landing page do not. `App.test.js` covers the landing page
+  only insofar as it renders and bounces a signed-out visitor off a protected route.
 - **Phone number is not editable** — it is the login identifier, so changing it needs a verified
   flow (confirm the old number, check the new one is free). Name and location are editable from
   the Account screen.
@@ -404,6 +407,13 @@ bucket, too high and clients can spoof the header to bypass the limit. Never set
   shared store (e.g. Redis).
 - **No retailer order cancellation** — retailers can place and pay for orders, but cannot cancel one
   from the UI; only the manufacturer can advance an order's status.
+- **The two product forms disagree on what a valid price is** — `MyProducts` rejects a unit price or
+  MOQ of `0`, but `AddProduct` accepts them. `AddProduct` tests the raw input string for truthiness
+  (`'0'` is truthy) and only parses it afterwards, so a listing priced at zero can be published from
+  the wizard and then not edited back to zero from the list. One rule should win.
+- **`AddProduct`'s preview hard-codes an "In stock" badge** — it renders regardless of the stock
+  figure or whether "Available to order" was switched off, so the preview can promise something the
+  published listing will not do.
 
 ---
 
