@@ -153,8 +153,8 @@ npm test
 ```
 
 The frontend suite runs on Jest through `react-scripts test`, using the
-`@testing-library/*` packages already listed in `package.json`. 140 tests across
-11 files:
+`@testing-library/*` packages already listed in `package.json`. 163 tests across
+13 files:
 
 | File | Covers |
 | ---- | ------ |
@@ -169,6 +169,8 @@ The frontend suite runs on Jest through `react-scripts test`, using the
 | `screens/OrderSummary.test.js` | The checkout flow — MOQ-stepped quantity, the total including the flat delivery fee, the confirm button's disabled states, phone normalisation (`0788123456` → `250788123456`), country derivation, and each payment outcome. Includes the guard that a **retry reuses the existing order** rather than creating a second one and reserving stock twice |
 | `screens/MyProducts.test.js` | Listing management — the live/hidden counts, editing with every validation branch, the trimmed-name and parsed-number payload, and the hide / make-live round trip. Includes the guard that a **failed hide does not flip the badge**, so the list never claims a change the server rejected |
 | `screens/AddProduct.test.js` | The three-step wizard — step navigation, the required-field gate, the payload (numbers parsed, blank stock defaulting to 0), the minimum-order-value calculation, the icon preview, and the reset-and-list-another path |
+| `screens/RetailerHome.test.js` | The supplier list and its filters — the badges (including that a rating of 0 hides the star rather than showing "★ 0"), the singular/plural count, and the exact query the search and category pills send, including that "All" means *no* category parameter |
+| `screens/SupplierDetail.test.js` | A supplier's header, badges and description, the product listings with their prices and minimum orders, the empty state, and both navigation exits |
 
 A failed payment deliberately renders its reason in two places — the error box at
 the top of the form and the note under the payment status card — so those
@@ -393,9 +395,9 @@ bucket, too high and clients can spoof the header to bypass the limit. Never set
 
 ## Known gaps
 
-- **Some React screens are still hand-verified** — `RoleSelect`, `Login`, `Register`, `Account`,
-  `OrderSummary`, `MyProducts` and `AddProduct` have tests, but `RetailerHome`, `SupplierDetail`,
-  `OrderHistory` and `ManufacturerHome` do not.
+- **Two screens are still hand-verified** — `OrderHistory` and `ManufacturerHome` have no tests.
+  Every screen a user writes through, plus the landing page and the retailer browsing flow, is
+  covered.
 - **Phone number is not editable** — it is the login identifier, so changing it needs a verified
   flow (confirm the old number, check the new one is free). Name and location are editable from
   the Account screen.
@@ -414,6 +416,16 @@ bucket, too high and clients can spoof the header to bypass the limit. Never set
 - **`AddProduct`'s preview hard-codes an "In stock" badge** — it renders regardless of the stock
   figure or whether "Available to order" was switched off, so the preview can promise something the
   published listing will not do.
+- **A failed request reads as an empty result on the browsing screens** — `RetailerHome` and
+  `SupplierDetail` log to the console and then render their "nothing here" state, so a dropped
+  connection looks like a search that found nothing. `RetailerHome` even tells the user to "try a
+  different search or category", blaming the query for a failed fetch. `SupplierDetail` is worse:
+  its `Promise.all` shares one catch, so if the *products* call fails while the supplier loads fine,
+  it discards the supplier and reports "Supplier not found." `MyProducts` already shows the error
+  message instead, and these two should follow it.
+- **`RetailerHome` refetches on every keystroke** — the search box drives the request directly, with
+  no debounce and no cancellation, so typing a word fires a request per character and a slow early
+  response can land after a fast later one and overwrite the results.
 
 ---
 
