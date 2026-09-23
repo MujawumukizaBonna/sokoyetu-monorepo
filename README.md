@@ -153,8 +153,8 @@ npm test
 ```
 
 The frontend suite runs on Jest through `react-scripts test`, using the
-`@testing-library/*` packages already listed in `package.json`. 130 tests across
-10 files:
+`@testing-library/*` packages already listed in `package.json`. 140 tests across
+11 files:
 
 | File | Covers |
 | ---- | ------ |
@@ -162,6 +162,7 @@ The frontend suite runs on Jest through `react-scripts test`, using the
 | `components/navItems.test.js` | `matchesPath` (exact, sub-path, array, predicate) and the nav invariants — including the guard that the dashboard item does not light up on `/manufacturer/products` |
 | `api/index.test.js` | The stored token being attached to requests, and the session-ended signal firing on `SESSION_INVALID` but **not** on a plain 401 |
 | `context/AuthContext.test.js` | Restoring a session from a stored token, discarding a rejected one, and dropping the user when the session-ended event fires |
+| `screens/RoleSelect.test.js` | The `/` landing page — its copy, features and steps, that a signed-out visitor stays put, that every call to action carries the right `?role=`, and that an already-signed-in visitor is sent straight to their own home |
 | `screens/Login.test.js` | Empty-field validation, the role-mismatch guard (a manufacturer's number entered on the retailer form is refused without signing anyone in), Enter-to-submit, and the 429 throttle message |
 | `screens/Register.test.js` | Field and password-length validation, both roles' payloads, role-specific labels, and the "phone already registered" message |
 | `screens/Account.test.js` | Profile editing, every password-change validation branch, storing the replacement token, the two-step sign-out-everywhere confirm, and the manufacturer-only business profile |
@@ -392,10 +393,9 @@ bucket, too high and clients can spoof the header to bypass the limit. Never set
 
 ## Known gaps
 
-- **Some React screens are still hand-verified** — `Login`, `Register`, `Account`, `OrderSummary`,
-  `MyProducts` and `AddProduct` have tests, but `RetailerHome`, `SupplierDetail`, `OrderHistory`,
-  `ManufacturerHome` and the `RoleSelect` landing page do not. `App.test.js` covers the landing page
-  only insofar as it renders and bounces a signed-out visitor off a protected route.
+- **Some React screens are still hand-verified** — `RoleSelect`, `Login`, `Register`, `Account`,
+  `OrderSummary`, `MyProducts` and `AddProduct` have tests, but `RetailerHome`, `SupplierDetail`,
+  `OrderHistory` and `ManufacturerHome` do not.
 - **Phone number is not editable** — it is the login identifier, so changing it needs a verified
   flow (confirm the old number, check the new one is free). Name and location are editable from
   the Account screen.
